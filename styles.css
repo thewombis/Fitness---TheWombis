@@ -111,6 +111,7 @@ body {
 .site-header h1 { margin: 0; font-size: 1.8rem; font-weight: 750; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px; }
 .site-header h1 .icon { flex: 0 0 auto; opacity: 0.95; }
 .tagline { margin: 4px 0 0; opacity: 0.9; }
+.byline { margin: 2px 0 0; font-size: 0.85em; font-weight: 600; letter-spacing: 0.02em; opacity: 0.75; }
 .header-flex { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
 .theme-picker { display: grid; gap: 4px; font-size: 0.85rem; }
 .theme-picker select { background: var(--card); color: var(--ink); }
