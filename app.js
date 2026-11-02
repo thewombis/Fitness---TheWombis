@@ -459,7 +459,7 @@ function renderResults(results) {
   ul.innerHTML = results.map(function (r, idx) {
     var meta = (r.brand ? esc(r.brand) + " · " : "") +
       Math.round(r.per100.kcal) + " kcal · P " + round1(r.per100.protein) + " · C " + round1(r.per100.carbs) +
-      " · F " + round1(r.per100.fat) + " per 100 g";
+      " · F " + round1(r.per100.fat) + (r.serving && r.serving.unit === "ml" ? " per 100 ml" : " per 100 g");
     if (r.serving) meta += " · Serving: " + esc(servingDisplay(r.serving));
     var control;
     if (r.serving) {
