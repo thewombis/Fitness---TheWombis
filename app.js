@@ -47,7 +47,50 @@ function shiftDate(dateStr, days) {
 function prettyDate(dateStr) {
   var parts = dateStr.split("-").map(Number);
   var dt = new Date(parts[0], parts[1] - 1, parts[2]);
-  return dt.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+  return dt.toLocaleDateString(localeTag(), { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+}
+
+/* ---------- Internationalization ----------
+   UI strings live in i18n.js (window.I18N / window.i18nLookup), keyed by
+   settings.language with English fallback. Static HTML carries
+   data-i18n / data-i18n-ph / data-i18n-aria / data-i18n-alt attributes;
+   dynamic strings call t(). Food names and database content are never
+   translated. Meal names are stored canonically in English and only
+   their display is translated (mealLabel). */
+var LOCALES = { en: "en-US", es: "es-ES", fr: "fr-FR", de: "de-DE", pt: "pt-BR", it: "it-IT", zh: "zh-CN", ja: "ja-JP" };
+function localeTag() {
+  var lang = (typeof state !== "undefined" && state.settings && state.settings.language) || "en";
+  return LOCALES[lang] || "en-US";
+}
+function t(key, vars) {
+  if (window.i18nLookup) return window.i18nLookup(state.settings.language || "en", key, vars);
+  return key;
+}
+var MEAL_KEYS = {
+  "Breakfast": "meal.breakfast", "Lunch": "meal.lunch", "Dinner": "meal.dinner", "Snack": "meal.snack",
+  "Morning snack": "meal.morningSnack", "Afternoon snack": "meal.afternoonSnack",
+  "Evening snack": "meal.eveningSnack", "Pre-workout snack": "meal.preworkoutSnack"
+};
+function mealLabel(meal) {
+  var k = MEAL_KEYS[meal];
+  return k ? t(k) : meal;
+}
+function applyI18n() {
+  if (!window.I18N) return;
+  var lang = state.settings.language || "en";
+  document.querySelectorAll("[data-i18n]").forEach(function (el) {
+    el.textContent = window.i18nLookup(lang, el.getAttribute("data-i18n"));
+  });
+  document.querySelectorAll("[data-i18n-ph]").forEach(function (el) {
+    el.setAttribute("placeholder", window.i18nLookup(lang, el.getAttribute("data-i18n-ph")));
+  });
+  document.querySelectorAll("[data-i18n-aria]").forEach(function (el) {
+    el.setAttribute("aria-label", window.i18nLookup(lang, el.getAttribute("data-i18n-aria")));
+  });
+  document.querySelectorAll("[data-i18n-alt]").forEach(function (el) {
+    el.setAttribute("alt", window.i18nLookup(lang, el.getAttribute("data-i18n-alt")));
+  });
+  document.title = window.i18nLookup(lang, "app.title");
 }
 
 /* ---------- Small utilities ---------- */
@@ -281,15 +324,16 @@ function renderHome() {
 
   $("ring-remaining").textContent = String(Math.round(Math.abs(remaining)));
   $("ring-remaining").parentElement.querySelector(".ring-label").textContent =
-    remaining < 0 ? "kcal over target" : "kcal remaining";
+    remaining < 0 ? t("home.ringOver") : t("home.ringRemaining");
   $("stat-target").textContent = String(target);
-  var goalTxt = { lose: "Lose weight", maintain: "Maintain", gain: "Build & gain" }[state.settings.goal] || "Maintain";
+  var goalTxt = { lose: t("home.goalLose"), maintain: t("home.goalMaintain"), gain: t("home.goalGain") }[state.settings.goal] || t("home.goalMaintain");
   if (state.settings.currentWeightKg != null && state.settings.targetWeightKg != null) {
-    goalTxt += " · " + round1(Math.abs(toDisplayWeight(state.settings.currentWeightKg) - toDisplayWeight(state.settings.targetWeightKg))) + " " + unitLabel() + " to go";
+    goalTxt += t("home.toGoSuffix", { amt: round1(Math.abs(toDisplayWeight(state.settings.currentWeightKg) - toDisplayWeight(state.settings.targetWeightKg))), unit: unitLabel() });
   }
   $("home-goal").textContent = goalTxt;
   $("stat-eaten").textContent = String(Math.round(totals.kcal));
-  $("home-items").textContent = entriesFor(today).length + (entriesFor(today).length === 1 ? " item" : " items");
+  var itemCount = entriesFor(today).length;
+  $("home-items").textContent = itemCount === 1 ? t("home.item1") : t("home.itemsN", { n: itemCount });
 
   $("val-protein").textContent = round1(totals.protein) + " g";
   $("val-carbs").textContent = round1(totals.carbs) + " g";
@@ -306,7 +350,7 @@ function renderHome() {
   var d = today;
   if (!entriesFor(d).length) d = shiftDate(d, -1);
   while (entriesFor(d).length) { streak++; d = shiftDate(d, -1); }
-  $("home-streak").textContent = streak + (streak === 1 ? " day" : " days");
+  $("home-streak").textContent = streak === 1 ? t("home.streak1") : t("home.streakN", { n: streak });
 
   // 7-day average over logged days in the last 7 days (including today)
   var sum = 0, logged = 0;
@@ -319,11 +363,9 @@ function renderHome() {
   renderCalendar();
 }
 
-var MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-
 function renderCalendar() {
   var y = calCursor.y, m = calCursor.m;
-  $("cal-title").textContent = MONTH_NAMES[m] + " " + y;
+  $("cal-title").textContent = new Date(y, m, 1).toLocaleDateString(localeTag(), { month: "long" }) + " " + y;
   var first = new Date(y, m, 1);
   var startOffset = (first.getDay() + 6) % 7; // Monday-first
   var daysInMonth = new Date(y, m + 1, 0).getDate();
@@ -352,10 +394,11 @@ function renderCalendar() {
 
 /* ---------- Log tab ---------- */
 function renderLogSummary() {
-  var t = dayTotals();
-  $("log-day-summary").textContent =
-    prettyDate(selectedDate) + " — " + Math.round(t.kcal) + " kcal · Protein " + round1(t.protein) +
-    " g · Carbs " + round1(t.carbs) + " g · Fat " + round1(t.fat) + " g";
+  var t2 = dayTotals();
+  $("log-day-summary").textContent = t("log.daySummary", {
+    date: prettyDate(selectedDate), kcal: Math.round(t2.kcal),
+    p: round1(t2.protein), c: round1(t2.carbs), f: round1(t2.fat)
+  });
   $("day-picker").value = selectedDate;
 }
 
@@ -380,10 +423,10 @@ function renderLog() {
         '<span class="log-meta">' + (it.brand ? esc(it.brand) + " · " : "") + entryAmountText(it) + " · P " +
         round1(s.protein) + " · C " + round1(s.carbs) + " · F " + round1(s.fat) + "</span></div>" +
         '<div><span class="log-kcal">' + Math.round(s.kcal) + " kcal</span>" +
-        '<button type="button" class="fav-btn" data-fav-entry="' + it.id + '" aria-pressed="' + fav + '" aria-label="Toggle favorite for ' + esc(it.name) + '" title="Favorite">' + (fav ? "★" : "☆") + "</button>" +
-        '<button type="button" class="log-remove" data-remove="' + it.id + '" aria-label="Remove ' + esc(it.name) + '">&times;</button></div></div>';
+        '<button type="button" class="fav-btn" data-fav-entry="' + it.id + '" aria-pressed="' + fav + '" aria-label="' + esc(t("aria.favToggle", { name: it.name })) + '" title="Favorite">' + (fav ? "★" : "☆") + "</button>" +
+        '<button type="button" class="log-remove" data-remove="' + it.id + '" aria-label="' + esc(t("aria.remove", { name: it.name })) + '">&times;</button></div></div>';
     });
-    html += '<div class="meal-group"><h3>' + meal + ' <span class="meal-kcal">' + Math.round(mealKcal) + " kcal</span></h3>" + rows + "</div>";
+    html += '<div class="meal-group"><h3>' + mealLabel(meal) + ' <span class="meal-kcal">' + Math.round(mealKcal) + " kcal</span></h3>" + rows + "</div>";
   });
   list.innerHTML = html;
   list.querySelectorAll("[data-remove]").forEach(function (btn) {
@@ -490,11 +533,11 @@ function volumeText(ml) {
 }
 
 function entryAmountText(it) {
-  if (it.recipeServing) return round1(it.dispQty) + " " + (it.dispQty === 1 ? "serving" : "servings") + " (recipe)";
+  if (it.recipeServing) return it.dispQty === 1 ? t("entry.recipeServing1") : t("entry.recipeServingN", { qty: round1(it.dispQty) });
   if (it.dispUnit === "serving" && it.servingAmount) {
     var base = it.servingUnit === "ml" ? volumeText(it.servingAmount) : it.servingAmount + " g";
-    var lab = it.servingLabel || "serving";
-    var word = it.dispQty === 1 ? lab : lab + (/(s|x|ch|sh)$/.test(lab) ? "es" : "s");
+    var lab = it.servingLabel || t("res.servingWord");
+    var word = it.dispQty === 1 || !it.servingLabel ? lab : lab + (/(s|x|ch|sh)$/.test(lab) ? "es" : "s");
     return round1(it.dispQty) + " " + word + " · " + base;
   }
   if (it.dispUnit === "oz") return round1(it.dispQty) + " fl oz";
@@ -606,18 +649,18 @@ function renderResults(results) {
   ul.innerHTML = results.map(function (r, idx) {
     var meta = (r.brand ? esc(r.brand) + " · " : "") +
       Math.round(r.per100.kcal) + " kcal · P " + round1(r.per100.protein) + " · C " + round1(r.per100.carbs) +
-      " · F " + round1(r.per100.fat) + (r.serving && r.serving.unit === "ml" ? " per 100 ml" : " per 100 g");
-    if (r.serving) meta += " · Serving: " + esc(servingDisplay(r.serving));
+      " · F " + round1(r.per100.fat) + " " + (r.serving && r.serving.unit === "ml" ? t("res.per100ml") : t("res.per100g"));
+    if (r.serving) meta += " · " + esc(t("res.serving", { s: servingDisplay(r.serving) }));
     var control;
     if (r.serving) {
       var amtTxt = r.serving.unit === "ml" ? volumeText(r.serving.amount) : r.serving.amount + " g";
-      var opts = '<option value="serving">' + esc(r.serving.label || "serving") + " · " + esc(amtTxt) + "</option>";
+      var opts = '<option value="serving">' + esc(r.serving.label || t("res.servingWord")) + " · " + esc(amtTxt) + "</option>";
       if (r.serving.unit === "ml") opts += '<option value="volume">' + (waterImperial() ? "fl oz" : "ml") + "</option>";
-      opts += '<option value="g">grams</option>';
-      control = '<input type="number" class="result-qty" id="qty-' + idx + '" value="1" min="0" step="0.5" aria-label="Quantity"> ' +
-        '<select class="result-unit" id="unit-' + idx + '" aria-label="Amount unit">' + opts + "</select>";
+      opts += '<option value="g">' + esc(t("res.gramsOpt")) + "</option>";
+      control = '<input type="number" class="result-qty" id="qty-' + idx + '" value="1" min="0" step="0.5" aria-label="' + esc(t("aria.qty")) + '"> ' +
+        '<select class="result-unit" id="unit-' + idx + '" aria-label="' + esc(t("aria.amountUnit")) + '">' + opts + "</select>";
     } else {
-      control = '<input type="number" class="result-grams" id="grams-' + idx + '" value="100" min="1" step="1" aria-label="Grams"> g';
+      control = '<input type="number" class="result-grams" id="grams-' + idx + '" value="100" min="1" step="1" aria-label="' + esc(t("aria.grams")) + '"> g';
     }
     var fav = isFavorite(r);
     return '<li class="result"><div class="result-main">' +
@@ -625,8 +668,8 @@ function renderResults(results) {
       '<span class="source-tag">' + esc(r.source) + "</span>" +
       '<div class="result-meta">' + meta + "</div></div>" +
       control +
-      '<button type="button" class="fav-btn" data-fav="' + idx + '" aria-pressed="' + fav + '" aria-label="Toggle favorite for ' + esc(r.name) + '" title="Favorite">' + (fav ? "★" : "☆") + "</button>" +
-      '<button type="button" class="btn btn-primary btn-small" data-add="' + idx + '"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Add</span></button></li>';
+      '<button type="button" class="fav-btn" data-fav="' + idx + '" aria-pressed="' + fav + '" aria-label="' + esc(t("aria.favToggle", { name: r.name })) + '" title="Favorite">' + (fav ? "★" : "☆") + "</button>" +
+      '<button type="button" class="btn btn-primary btn-small" data-add="' + idx + '"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>' + esc(t("common.add")) + "</span></button></li>";
   }).join("");
   ul.querySelectorAll("[data-add]").forEach(function (btn) {
     btn.addEventListener("click", function () {
@@ -642,7 +685,7 @@ function renderResults(results) {
       var food = results[idx];
       var amt = amountFromControls(food, "qty-" + idx, "unit-" + idx, "grams-" + idx);
       var nowFav = toggleFavorite(foodSnapshot(food, amt.grams, amt.disp));
-      $("search-status").textContent = nowFav ? "Saved to Favorites. Find it under the search box for one-tap logging." : "Removed from Favorites.";
+      $("search-status").textContent = nowFav ? t("quick.savedFav") : t("quick.removedFav");
       $("search-status").className = "status";
       renderResults(results);
       renderQuickAdd();
@@ -672,7 +715,7 @@ function addEntry(food, grams, disp) {
   state.entries[selectedDate].push(entry);
   pushRecent(foodSnapshot(food, entry.grams, disp));
   saveState(); renderAll();
-  $("search-status").textContent = "Added " + food.name + " to " + entry.meal + ".";
+  $("search-status").textContent = t("res.addedTo", { name: food.name, meal: mealLabel(entry.meal) });
   $("search-status").className = "status";
 }
 
@@ -686,8 +729,8 @@ function renderQuickAdd() {
     return '<div class="quick-row"><div class="quick-main">' +
       '<span class="result-name">' + esc(snap.name) + "</span>" +
       '<div class="result-meta">' + (snap.brand ? esc(snap.brand) + " · " : "") + esc(snapshotAmountText(snap)) + " · " + Math.round(s.kcal) + " kcal</div></div>" +
-      '<button type="button" class="fav-btn" data-quick-fav="' + kind + ":" + idx + '" aria-pressed="' + fav + '" aria-label="Toggle favorite for ' + esc(snap.name) + '" title="Favorite">' + (fav ? "★" : "☆") + "</button>" +
-      '<button type="button" class="btn btn-primary btn-small" data-quick-log="' + kind + ":" + idx + '">Log</button></div>';
+      '<button type="button" class="fav-btn" data-quick-fav="' + kind + ":" + idx + '" aria-pressed="' + fav + '" aria-label="' + esc(t("aria.favToggle", { name: snap.name })) + '" title="Favorite">' + (fav ? "★" : "☆") + "</button>" +
+      '<button type="button" class="btn btn-primary btn-small" data-quick-log="' + kind + ":" + idx + '">' + esc(t("quick.log")) + "</button></div>";
   }
   favBox.hidden = !favorites.length;
   recBox.hidden = !recents.length;
@@ -719,12 +762,12 @@ function renderCopyYesterday() {
   var srcEntries = entriesFor(src);
   if (!srcEntries.length) { box.hidden = true; box.innerHTML = ""; return; }
   box.hidden = false;
-  var html = '<span class="copy-label">Copy from ' + esc(prettyDate(src)) + ":</span>";
+  var html = '<span class="copy-label">' + esc(t("copy.fromLabel", { date: prettyDate(src) })) + "</span>";
   MEALS.forEach(function (meal) {
     var n = srcEntries.filter(function (e) { return e.meal === meal; }).length;
-    if (n) html += '<button type="button" class="btn btn-small" data-copy-meal="' + meal + '">' + meal + " (" + n + ")</button>";
+    if (n) html += '<button type="button" class="btn btn-small" data-copy-meal="' + meal + '">' + esc(mealLabel(meal)) + " (" + n + ")</button>";
   });
-  html += '<button type="button" class="btn btn-small" data-copy-all="1">Whole day (' + srcEntries.length + ")</button>";
+  html += '<button type="button" class="btn btn-small" data-copy-all="1">' + esc(t("copy.wholeDay", { n: srcEntries.length })) + "</button>";
   box.innerHTML = html;
   box.querySelectorAll("[data-copy-meal]").forEach(function (btn) {
     btn.addEventListener("click", function () { copyFromYesterday(btn.getAttribute("data-copy-meal")); });
@@ -744,7 +787,7 @@ function copyFromYesterday(meal) {
     state.entries[selectedDate].push(c);
   });
   saveState(); renderAll();
-  $("search-status").textContent = "Copied " + list.length + " item" + (list.length === 1 ? "" : "s") + " from " + prettyDate(src) + ".";
+  $("search-status").textContent = list.length === 1 ? t("copy.done1", { date: prettyDate(src) }) : t("copy.doneN", { n: list.length, date: prettyDate(src) });
   $("search-status").className = "status";
 }
 
@@ -759,7 +802,7 @@ function nutritionLine(n) {
 function microsLine(n) {
   if (!n.micros) return "";
   var parts = MICROS.filter(function (m) { return num(n.micros[m.key]) > 0.005; }).map(function (m) {
-    return m.name + " " + round1(n.micros[m.key]) + " " + m.unit;
+    return t("micro." + m.key) + " " + round1(n.micros[m.key]) + " " + m.unit;
   });
   return parts.length ? parts.join(" · ") : "";
 }
@@ -769,17 +812,18 @@ function renderRecipeBuilder() {
   if (!listBox) return;
   // Saved recipes, each loggable by servings into the selected meal/day.
   if (!myRecipes.length) {
-    listBox.innerHTML = '<p class="hint">No saved recipes yet. Build your first one below.</p>';
+    listBox.innerHTML = '<p class="hint">' + esc(t("recipes.noneSaved")) + "</p>";
   } else {
     listBox.innerHTML = myRecipes.map(function (r) {
       var per = window.Recipes.recipePerServing(r);
       var micro = microsLine(per);
+      var makes = r.servings === 1 ? t("recipes.makes1", { line: nutritionLine(per) }) : t("recipes.makesN", { n: round1(r.servings), line: nutritionLine(per) });
       return '<div class="recipe"><h3>' + esc(r.name) + '</h3>' +
-        '<div class="recipe-meta">Makes ' + round1(r.servings) + " serving" + (r.servings === 1 ? "" : "s") + " · per serving: " + nutritionLine(per) + (micro ? "<br>" + esc(micro) : "") + "</div>" +
-        '<div class="row"><label>Servings <input type="number" class="recipe-qty" id="rq-' + r.id + '" value="1" min="0" step="0.25"></label>' +
-        '<button type="button" class="btn btn-primary btn-small" data-recipe-log="' + r.id + '">Log</button>' +
-        '<button type="button" class="btn btn-small" data-recipe-edit="' + r.id + '">Edit</button>' +
-        '<button type="button" class="btn btn-small btn-danger" data-recipe-del="' + r.id + '">Delete</button></div></div>';
+        '<div class="recipe-meta">' + esc(makes) + (micro ? "<br>" + esc(micro) : "") + "</div>" +
+        '<div class="row"><label>' + esc(t("recipes.servings")) + ' <input type="number" class="recipe-qty" id="rq-' + r.id + '" value="1" min="0" step="0.25"></label>' +
+        '<button type="button" class="btn btn-primary btn-small" data-recipe-log="' + r.id + '">' + esc(t("quick.log")) + '</button>' +
+        '<button type="button" class="btn btn-small" data-recipe-edit="' + r.id + '">' + esc(t("recipes.edit")) + '</button>' +
+        '<button type="button" class="btn btn-small btn-danger" data-recipe-del="' + r.id + '">' + esc(t("recipes.delete")) + "</button></div></div>";
     }).join("");
     listBox.querySelectorAll("[data-recipe-log]").forEach(function (btn) {
       btn.addEventListener("click", function () {
@@ -791,7 +835,9 @@ function renderRecipeBuilder() {
         if (!state.entries[selectedDate]) state.entries[selectedDate] = [];
         state.entries[selectedDate].push(entry);
         saveState(); renderAll();
-        $("recipe-status").textContent = "Logged " + round1(qty) + " serving" + (qty === 1 ? "" : "s") + " of " + r.name + " to " + entry.meal + ".";
+        $("recipe-status").textContent = qty === 1
+          ? t("recipes.logged1", { name: r.name, meal: mealLabel(entry.meal) })
+          : t("recipes.loggedN", { qty: round1(qty), name: r.name, meal: mealLabel(entry.meal) });
         $("recipe-status").className = "status";
       });
     });
@@ -805,28 +851,28 @@ function renderRecipeBuilder() {
       btn.addEventListener("click", function () {
         var r = myRecipes.filter(function (x) { return x.id === btn.getAttribute("data-recipe-del"); })[0];
         if (!r) return;
-        if (!window.confirm("Delete the recipe \"" + r.name + "\"? Entries already logged from it stay in your log.")) return;
+        if (!window.confirm(t("recipes.deleteConfirm", { name: r.name }))) return;
         myRecipes = myRecipes.filter(function (x) { return x.id !== r.id; });
         if (recipeDraft.id === r.id) resetRecipeDraft();
         saveRecipes(); renderRecipeBuilder();
-        $("recipe-status").textContent = "Recipe deleted.";
+        $("recipe-status").textContent = t("recipes.deleted");
         $("recipe-status").className = "status";
       });
     });
   }
   // Draft (new or being edited)
-  $("recipe-form-title").textContent = recipeDraft.id ? "Edit recipe" : "New recipe";
+  $("recipe-form-title").textContent = recipeDraft.id ? t("recipes.editTitle") : t("recipes.newTitle");
   $("recipe-cancel-edit").hidden = !recipeDraft.id;
   var ingBox = $("recipe-ingredients");
   if (!recipeDraft.ingredients.length) {
-    ingBox.innerHTML = '<p class="hint">No ingredients yet. Search below and add foods to the recipe.</p>';
+    ingBox.innerHTML = '<p class="hint">' + esc(t("recipes.noIngredients")) + "</p>";
   } else {
     ingBox.innerHTML = recipeDraft.ingredients.map(function (ing, i) {
       var s = window.Recipes.scalePer100(ing.per100, ing.grams);
       return '<div class="quick-row"><div class="quick-main">' +
         '<span class="result-name">' + esc(ing.name) + "</span>" +
         '<div class="result-meta">' + (ing.brand ? esc(ing.brand) + " · " : "") + esc(snapshotAmountText(ing)) + " · " + Math.round(s.kcal) + " kcal</div></div>" +
-        '<button type="button" class="log-remove" data-ing-remove="' + i + '" aria-label="Remove ' + esc(ing.name) + ' from the recipe">&times;</button></div>';
+        '<button type="button" class="log-remove" data-ing-remove="' + i + '" aria-label="' + esc(t("recipes.removeIngAria", { name: ing.name })) + '">&times;</button></div>';
     }).join("");
     ingBox.querySelectorAll("[data-ing-remove]").forEach(function (btn) {
       btn.addEventListener("click", function () {
@@ -841,7 +887,7 @@ function renderRecipeBuilder() {
     var tot = window.Recipes.recipeTotals(draftRecipe);
     var per = window.Recipes.recipePerServing(draftRecipe);
     var micro = microsLine(per);
-    totalsBox.textContent = "Whole recipe: " + nutritionLine(tot) + " — Per serving: " + nutritionLine(per) + (micro ? " · " + micro : "");
+    totalsBox.textContent = t("recipes.totalLine", { total: nutritionLine(tot), per: nutritionLine(per) }) + (micro ? " · " + micro : "");
   } else {
     totalsBox.textContent = "";
   }
@@ -851,7 +897,7 @@ function loadRecipeDraft(r) {
   recipeDraft = JSON.parse(JSON.stringify({ id: r.id, name: r.name, servings: r.servings, ingredients: r.ingredients }));
   $("recipe-name").value = recipeDraft.name;
   $("recipe-servings").value = recipeDraft.servings;
-  $("recipe-status").textContent = "Editing \"" + r.name + "\". Change anything, then Save recipe.";
+  $("recipe-status").textContent = t("recipes.editingNote", { name: r.name });
   $("recipe-status").className = "status";
   renderRecipeBuilder();
   $("recipes-card").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -871,17 +917,17 @@ function saveRecipeDraft() {
   var sv = Number($("recipe-servings").value);
   recipeDraft.servings = sv > 0 ? sv : 0;
   if (!recipeDraft.name) {
-    status.textContent = "Give the recipe a name first.";
+    status.textContent = t("recipes.needName");
     status.className = "status error";
     return;
   }
   if (!(recipeDraft.servings > 0)) {
-    status.textContent = "Servings must be more than 0.";
+    status.textContent = t("recipes.needServings");
     status.className = "status error";
     return;
   }
   if (!recipeDraft.ingredients.length) {
-    status.textContent = "Add at least one ingredient before saving.";
+    status.textContent = t("recipes.needIngredient");
     status.className = "status error";
     return;
   }
@@ -899,7 +945,7 @@ function saveRecipeDraft() {
   saveRecipes();
   resetRecipeDraft();
   renderRecipeBuilder();
-  status.textContent = "Recipe \"" + rec.name + "\" saved.";
+  status.textContent = t("recipes.savedNote", { name: rec.name });
   status.className = "status";
 }
 
@@ -909,25 +955,25 @@ function renderRecipeResults(results) {
   ul.innerHTML = results.map(function (r, idx) {
     var meta = (r.brand ? esc(r.brand) + " · " : "") +
       Math.round(r.per100.kcal) + " kcal · P " + round1(r.per100.protein) + " · C " + round1(r.per100.carbs) +
-      " · F " + round1(r.per100.fat) + (r.serving && r.serving.unit === "ml" ? " per 100 ml" : " per 100 g");
-    if (r.serving) meta += " · Serving: " + esc(servingDisplay(r.serving));
+      " · F " + round1(r.per100.fat) + " " + (r.serving && r.serving.unit === "ml" ? t("res.per100ml") : t("res.per100g"));
+    if (r.serving) meta += " · " + esc(t("res.serving", { s: servingDisplay(r.serving) }));
     var control;
     if (r.serving) {
       var amtTxt = r.serving.unit === "ml" ? volumeText(r.serving.amount) : r.serving.amount + " g";
-      var opts = '<option value="serving">' + esc(r.serving.label || "serving") + " · " + esc(amtTxt) + "</option>";
+      var opts = '<option value="serving">' + esc(r.serving.label || t("res.servingWord")) + " · " + esc(amtTxt) + "</option>";
       if (r.serving.unit === "ml") opts += '<option value="volume">' + (waterImperial() ? "fl oz" : "ml") + "</option>";
-      opts += '<option value="g">grams</option>';
-      control = '<input type="number" class="result-qty" id="rqty-' + idx + '" value="1" min="0" step="0.5" aria-label="Quantity"> ' +
-        '<select class="result-unit" id="runit-' + idx + '" aria-label="Amount unit">' + opts + "</select>";
+      opts += '<option value="g">' + esc(t("res.gramsOpt")) + "</option>";
+      control = '<input type="number" class="result-qty" id="rqty-' + idx + '" value="1" min="0" step="0.5" aria-label="' + esc(t("aria.qty")) + '"> ' +
+        '<select class="result-unit" id="runit-' + idx + '" aria-label="' + esc(t("aria.amountUnit")) + '">' + opts + "</select>";
     } else {
-      control = '<input type="number" class="result-grams" id="rgrams-' + idx + '" value="100" min="1" step="1" aria-label="Grams"> g';
+      control = '<input type="number" class="result-grams" id="rgrams-' + idx + '" value="100" min="1" step="1" aria-label="' + esc(t("aria.grams")) + '"> g';
     }
     return '<li class="result"><div class="result-main">' +
       '<span class="result-name">' + esc(r.name) + "</span> " +
       '<span class="source-tag">' + esc(r.source) + "</span>" +
       '<div class="result-meta">' + meta + "</div></div>" +
       control +
-      '<button type="button" class="btn btn-primary btn-small" data-radd="' + idx + '"><span>Add ingredient</span></button></li>';
+      '<button type="button" class="btn btn-primary btn-small" data-radd="' + idx + '"><span>' + esc(t("recipes.addIngredientBtn")) + "</span></button></li>";
   }).join("");
   ul.querySelectorAll("[data-radd]").forEach(function (btn) {
     btn.addEventListener("click", function () {
@@ -956,7 +1002,6 @@ var VOICE_NUMBER_WORDS = {
   one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8,
   nine: 9, ten: 10, eleven: 11, twelve: 12, a: 1, an: 1, half: 0.5
 };
-var VOICE_LANGS = { en: "en-US", es: "es-ES", fr: "fr-FR", de: "de-DE", pt: "pt-BR", it: "it-IT", zh: "zh-CN", ja: "ja-JP" };
 
 function parseVoiceTranscript(text) {
   var clean = String(text || "").trim();
@@ -985,12 +1030,12 @@ function setupVoice() {
     var status = $("search-status");
     if (rec) { try { rec.stop(); } catch (e) { /* already stopping */ } return; }
     rec = new SR();
-    rec.lang = VOICE_LANGS[state.settings.language] || "en-US";
+    rec.lang = localeTag();
     rec.interimResults = false;
     rec.maxAlternatives = 1;
     btn.classList.add("listening");
-    if (label) label.textContent = "Listening…";
-    status.textContent = "Listening… say a food, like \"two eggs\" or \"chicken salad\". Tap Speak again to stop.";
+    if (label) label.textContent = t("voice.listening");
+    status.textContent = t("voice.prompt");
     status.className = "status";
     rec.onresult = function (ev) {
       var transcript = (ev.results[0] && ev.results[0][0] && ev.results[0][0].transcript) || "";
@@ -1003,52 +1048,52 @@ function setupVoice() {
     };
     rec.onerror = function (ev) {
       if (ev.error === "not-allowed" || ev.error === "service-not-allowed") {
-        status.textContent = "Microphone access was blocked. Allow microphone permission for this site to use voice search — typing still works.";
+        status.textContent = t("voice.blocked");
         status.className = "status error";
       } else if (ev.error === "no-speech") {
-        status.textContent = "Didn't catch that. Try again, or type your search.";
+        status.textContent = t("voice.noSpeech");
         status.className = "status error";
       } else if (ev.error && ev.error !== "aborted") {
-        status.textContent = "Voice search hit a problem (" + ev.error + "). You can still type your search.";
+        status.textContent = t("voice.error", { err: ev.error });
         status.className = "status error";
       }
     };
     rec.onend = function () {
       rec = null;
       btn.classList.remove("listening");
-      if (label) label.textContent = "Speak";
+      if (label) label.textContent = t("voice.speak");
     };
     try { rec.start(); } catch (e) {
       rec = null;
       btn.classList.remove("listening");
-      if (label) label.textContent = "Speak";
+      if (label) label.textContent = t("voice.speak");
     }
   });
 }
 
 function lookupBarcode(code) {
   var status = $("barcode-status");
-  status.textContent = "Looking up barcode " + code + "…";
+  status.textContent = t("barcode.looking", { code: code });
   status.className = "status";
   fetch("https://world.openfoodfacts.org/api/v2/product/" + encodeURIComponent(code) + ".json")
     .then(function (r) { return r.json(); })
     .then(function (data) {
       if (data.status !== 1 || !data.product) {
-        status.textContent = "No product found for that barcode in Open Food Facts.";
+        status.textContent = t("barcode.notFound");
         status.className = "status error";
         return;
       }
       var per100 = offNutrients(data.product.nutriments);
       if (!per100) {
-        status.textContent = "Product found, but it has no nutrition data in Open Food Facts.";
+        status.textContent = t("barcode.noNutrition");
         status.className = "status error";
         return;
       }
       renderResults([{ name: data.product.product_name || ("Barcode " + code), brand: data.product.brands || "", source: "Open Food Facts", per100: per100, serving: offServing(data.product) }]);
-      status.textContent = "Found it. Set the amount in the result above, then Add.";
+      status.textContent = t("barcode.found");
     })
     .catch(function () {
-      status.textContent = "Barcode lookup failed (network or service error). Please try again.";
+      status.textContent = t("barcode.lookupFailed");
       status.className = "status error";
     });
 }
@@ -1082,7 +1127,7 @@ function startScan() {
   var hasMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
   if (("BarcodeDetector" in window) && hasMedia) { startNativeScan(); return; }
   if (hasMedia && window.Html5Qrcode) { startZxingScan(status); return; }
-  status.textContent = "Camera barcode scanning is not supported in this browser — the typed barcode lookup above works everywhere.";
+  status.textContent = t("scan.unsupported");
   status.className = "status error";
 }
 
@@ -1116,7 +1161,7 @@ function startNativeScan() {
       }, 450);
     })
     .catch(function () {
-      status.textContent = "Could not start the camera (permission denied or no camera). The typed barcode lookup works everywhere.";
+      status.textContent = t("scan.camFail");
       status.className = "status error";
       stopScan();
     });
@@ -1132,7 +1177,7 @@ function startZxingScan(status) {
   if (video) video.hidden = true;
   if (holder) holder.hidden = false;
   var note = $("scan-status");
-  if (note) note.textContent = "Point the camera at a barcode.";
+  if (note) note.textContent = t("log.scanPoint");
   var formats = null;
   try {
     var F = window.Html5QrcodeSupportedFormats;
@@ -1143,7 +1188,7 @@ function startZxingScan(status) {
       ? new window.Html5Qrcode("scan-zxing", { formatsToSupport: formats, verbose: false })
       : new window.Html5Qrcode("scan-zxing", { verbose: false });
   } catch (e) {
-    status.textContent = "Could not start the camera scanner. The typed barcode lookup works everywhere.";
+    status.textContent = t("scan.scannerFail");
     status.className = "status error";
     stopScan();
     return;
@@ -1161,7 +1206,7 @@ function startZxingScan(status) {
     },
     function () { /* per-frame misses are expected; keep scanning */ }
   ).catch(function () {
-    status.textContent = "Could not start the camera (permission denied or no camera). The typed barcode lookup works everywhere.";
+    status.textContent = t("scan.camFail");
     status.className = "status error";
     stopScan();
   });
@@ -1191,13 +1236,13 @@ function renderCalChart() {
   var iw = W - padL - padR, ih = H - padT - padB;
   var bw = iw / days.length;
   function Y(v) { return padT + (1 - v / max) * ih; }
-  var svg = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Calorie history chart">';
+  var svg = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="' + esc(t("chart.calAria")) + '">';
   svg += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (H - padB) + '" stroke="var(--line)"/>';
   svg += '<line x1="' + padL + '" y1="' + (H - padB) + '" x2="' + (W - padR) + '" y2="' + (H - padB) + '" stroke="var(--line)"/>';
   svg += '<text x="4" y="' + (Y(max / 1.12) + 4) + '" font-size="11" fill="var(--muted)">' + Math.round(max / 1.12) + "</text>";
   var ty = Y(target);
   svg += '<line x1="' + padL + '" y1="' + ty + '" x2="' + (W - padR) + '" y2="' + ty + '" stroke="var(--danger)" stroke-dasharray="5 4"/>';
-  svg += '<text x="' + (W - padR - 40) + '" y="' + (ty - 5) + '" font-size="11" fill="var(--danger)">target</text>';
+  svg += '<text x="' + (W - padR - 40) + '" y="' + (ty - 5) + '" font-size="11" fill="var(--danger)">' + esc(t("chart.target")) + "</text>";
   var labelEvery = trendsRange > 14 ? 5 : 2;
   days.forEach(function (ds, i) {
     var v = totals[i];
@@ -1226,13 +1271,13 @@ function renderMacroChart() {
   var W = 700, H = 210, padL = 40, padR = 10, padT = 12, padB = 26;
   var iw = W - padL - padR, ih = H - padT - padB;
   if (max <= 0) {
-    box.innerHTML = '<p class="hint">No foods logged in the last 14 days yet.</p>';
+    box.innerHTML = '<p class="hint">' + esc(t("trends.noFood14")) + "</p>";
     return;
   }
   function Y(v) { return padT + (1 - v / max) * ih; }
   var groupW = iw / days.length;
   var bw = Math.max(1.5, (groupW - 4) / 3);
-  var svg = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Macro history chart">';
+  var svg = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="' + esc(t("chart.macroAria")) + '">';
   svg += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (H - padB) + '" stroke="var(--line)"/>';
   svg += '<line x1="' + padL + '" y1="' + (H - padB) + '" x2="' + (W - padR) + '" y2="' + (H - padB) + '" stroke="var(--line)"/>';
   svg += '<text x="4" y="' + (Y(max) + 4) + '" font-size="11" fill="var(--muted)">' + Math.round(max) + " g</text>";
@@ -1260,7 +1305,7 @@ function renderMicros() {
     var v = t.micros[m.key];
     var pctv = Math.max(0, Math.min(100, (v / m.target) * 100));
     var shown = v >= 100 ? Math.round(v) : round1(v);
-    return '<div class="micro"><span class="micro-name">' + m.name + '</span>' +
+    return '<div class="micro"><span class="micro-name">' + t("micro." + m.key) + '</span>' +
       '<div class="bar"><div class="bar-fill" style="width:' + pctv.toFixed(1) + '%"></div></div>' +
       '<span class="micro-val">' + shown + " / " + m.target + " " + m.unit + " · " + Math.round(pctv) + "%</span></div>";
   }).join("");
@@ -1294,9 +1339,7 @@ function renderWeight() {
 
   var box = $("weight-chart");
   if (ws.length < 2) {
-    box.innerHTML = '<p class="hint">' + (ws.length === 1
-      ? "One weigh-in logged. Add another on a different day to see your trend line."
-      : "No weigh-ins yet. Add your first one below.") + "</p>";
+    box.innerHTML = '<p class="hint">' + esc(ws.length === 1 ? t("weight.oneOnly") : t("weight.noneYet")) + "</p>";
   } else {
     var W = 700, H = 220, padL = 46, padR = 14, padT = 14, padB = 26;
     var vals = ws.map(function (w) { return toDisplayWeight(w.kg); });
@@ -1308,7 +1351,7 @@ function renderWeight() {
     function X(d) { return padL + ((new Date(d).getTime() - x0) / (x1 - x0)) * (W - padL - padR); }
     function Y(v) { return padT + (1 - (v - min) / (max - min)) * (H - padT - padB); }
     var pts = ws.map(function (w) { return X(w.date).toFixed(1) + "," + Y(toDisplayWeight(w.kg)).toFixed(1); }).join(" ");
-    var svg = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Weight trend chart">';
+    var svg = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="' + esc(t("weight.chartAria")) + '">';
     svg += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (H - padB) + '" stroke="var(--line)"/>';
     svg += '<line x1="' + padL + '" y1="' + (H - padB) + '" x2="' + (W - padR) + '" y2="' + (H - padB) + '" stroke="var(--line)"/>';
     svg += '<text x="6" y="' + (Y(max) + 4) + '" font-size="11" fill="var(--muted)">' + round1(max) + "</text>";
@@ -1316,7 +1359,7 @@ function renderWeight() {
     if (targetKg != null) {
       var ty = Y(toDisplayWeight(targetKg));
       svg += '<line x1="' + padL + '" y1="' + ty + '" x2="' + (W - padR) + '" y2="' + ty + '" stroke="var(--accent)" stroke-dasharray="5 4"/>' +
-        '<text x="' + (W - padR - 64) + '" y="' + (ty - 5) + '" font-size="11" fill="var(--accent)">target</text>';
+        '<text x="' + (W - padR - 64) + '" y="' + (ty - 5) + '" font-size="11" fill="var(--accent)">' + esc(t("chart.target")) + "</text>";
     }
     svg += '<polyline points="' + pts + '" fill="none" stroke="var(--protein)" stroke-width="2.5"/>';
     ws.forEach(function (w) {
@@ -1330,7 +1373,7 @@ function renderWeight() {
 
   $("weight-list").innerHTML = ws.slice().reverse().map(function (w) {
     return "<li><span>" + esc(w.date) + "</span><span>" + round1(toDisplayWeight(w.kg)) + " " + unit +
-      ' <button type="button" class="log-remove" data-wremove="' + esc(w.date) + '" aria-label="Remove weigh-in on ' + esc(w.date) + '">&times;</button></span></li>';
+      ' <button type="button" class="log-remove" data-wremove="' + esc(w.date) + '" aria-label="' + esc(t("weight.removeAria", { date: w.date })) + '">&times;</button></span></li>';
   }).join("");
   $("weight-list").querySelectorAll("[data-wremove]").forEach(function (btn) {
     btn.addEventListener("click", function () {
@@ -1357,14 +1400,14 @@ function renderWater() {
   $("water-picker").value = waterDate;
   if (imp) {
     $("water-amount").textContent = round1(ml / ML_PER_OZ) + " fl oz";
-    $("water-sub").textContent = Math.round(ml) + " ml · goal " + round1(goal / ML_PER_OZ) + " fl oz · " + prettyDate(waterDate);
+    $("water-sub").textContent = Math.round(ml) + " ml · " + t("water.goalWord") + " " + round1(goal / ML_PER_OZ) + " fl oz · " + prettyDate(waterDate);
   } else {
     $("water-amount").textContent = Math.round(ml) + " ml";
-    $("water-sub").textContent = round1(ml / ML_PER_OZ) + " fl oz · goal " + goal + " ml · " + prettyDate(waterDate);
+    $("water-sub").textContent = round1(ml / ML_PER_OZ) + " fl oz · " + t("water.goalWord") + " " + goal + " ml · " + prettyDate(waterDate);
   }
   var pctv = Math.max(0, Math.min(100, (ml / goal) * 100));
   $("water-bar").style.width = pctv.toFixed(1) + "%";
-  $("water-pct").textContent = Math.round(pctv) + "% of daily goal";
+  $("water-pct").textContent = t("water.pctGoal", { pct: Math.round(pctv) });
   var key = imp ? "imperial" : "metric";
   if (key !== waterQuickKey) {
     waterQuickKey = key;
@@ -1413,11 +1456,11 @@ function renderFasting() {
   if (cur) updateFastingClock();
   var hist = $("fasting-history");
   if (!fastingStore.history.length) {
-    hist.innerHTML = '<p class="hint">No fasts recorded yet.</p>';
+    hist.innerHTML = '<p class="hint">' + esc(t("fasting.none")) + "</p>";
   } else {
     hist.innerHTML = fastingStore.history.slice().reverse().slice(0, 10).map(function (f) {
       return '<div class="log-item"><div><span class="log-name">' + esc(prettyDate(todayStr(new Date(f.end)))) + '</span> ' +
-        '<span class="log-meta">target ' + f.targetHours + "h · " + (f.met ? "target met" : "ended early") + '</span></div>' +
+        '<span class="log-meta">' + esc(t("fasting.targetLine", { h: f.targetHours })) + " · " + esc(f.met ? t("fasting.targetMet") : t("fasting.endedEarly")) + '</span></div>' +
         '<div><span class="log-kcal">' + window.Fasting.formatDuration(f.durationMs) + "</span></div></div>";
     }).join("");
   }
@@ -1431,17 +1474,16 @@ function updateFastingClock() {
   $("fasting-elapsed").textContent = window.Fasting.formatElapsed(el);
   var pct = Math.round(window.Fasting.progress(cur.start, cur.targetHours, now) * 100);
   $("fasting-bar").style.width = pct + "%";
-  $("fasting-pct").textContent = pct + "% of " + cur.targetHours + "h target";
+  $("fasting-pct").textContent = t("fasting.pctTarget", { pct: pct, h: cur.targetHours });
   var startD = new Date(cur.start);
-  $("fasting-sub").textContent = "Started " + prettyDate(todayStr(startD)) + " at " +
-    startD.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + (pct >= 100 ? " · target reached" : "");
+  $("fasting-sub").textContent = t("fasting.startedAt", { date: prettyDate(todayStr(startD)), time: startD.toLocaleTimeString(localeTag(), { hour: "numeric", minute: "2-digit" }) }) + (pct >= 100 ? t("fasting.reached") : "");
 }
 
 function startFast() {
   fastingStore.current = { start: Date.now(), targetHours: fastingTargetPick };
   saveFasting();
   renderFasting();
-  $("fasting-status").textContent = "Fast started with a " + fastingTargetPick + "h target.";
+  $("fasting-status").textContent = t("fasting.startedNote", { h: fastingTargetPick });
   $("fasting-status").className = "status";
 }
 
@@ -1454,14 +1496,14 @@ function endFast() {
   fastingTargetPick = done.targetHours;
   saveFasting();
   renderFasting();
-  $("fasting-status").textContent = "Fast ended: " + window.Fasting.formatDuration(done.durationMs) +
-    (done.met ? " — target met." : " (target was " + done.targetHours + "h).");
+  $("fasting-status").textContent = t("fasting.endedNote", { dur: window.Fasting.formatDuration(done.durationMs) }) +
+    (done.met ? t("fasting.endedMet") : t("fasting.endedShort", { h: done.targetHours }));
   $("fasting-status").className = "status";
 }
 
 function cancelFast() {
   if (!fastingStore.current) return;
-  if (!window.confirm("Cancel this fast without recording it?")) return;
+  if (!window.confirm(t("fasting.cancelConfirm"))) return;
   fastingTargetPick = fastingStore.current.targetHours;
   fastingStore.current = null;
   saveFasting();
@@ -1500,16 +1542,16 @@ function showReminderBanner() {
 }
 
 function fireReminder(meal) {
-  var msg = "Gentle reminder: nothing logged for " + meal + " yet today.";
+  var msg = t("reminders.msg", { meal: mealLabel(meal) });
   if ("Notification" in window && Notification.permission === "granted") {
     var shown = false;
     if (navigator.serviceWorker && navigator.serviceWorker.ready) {
       navigator.serviceWorker.ready.then(function (reg) {
-        if (reg && reg.showNotification) { reg.showNotification("Calorie Counter", { body: msg }); shown = true; }
+        if (reg && reg.showNotification) { reg.showNotification(t("app.title"), { body: msg }); shown = true; }
       }).catch(function () { /* fall through to the banner */ });
     }
     if (!shown) {
-      try { new Notification("Calorie Counter", { body: msg }); } catch (e) { /* banner below still shows */ }
+      try { new Notification(t("app.title"), { body: msg }); } catch (e) { /* banner below still shows */ }
     }
   }
   if (reminderBannerMsgs.indexOf(msg) < 0) reminderBannerMsgs.push(msg);
@@ -1563,12 +1605,10 @@ function splitForMeals() {
 
 function renderPlanner() {
   var target = state.settings.target || 2000;
-  $("plan-target-note").textContent =
-    "Splitting your daily target of " + target + " kcal across " + state.planner.mealsPerDay +
-    " eating occasions. Percentages are a starting guide — shift them to match your hunger and schedule.";
+  $("plan-target-note").textContent = t("planner.targetNote", { target: target, n: state.planner.mealsPerDay });
   $("plan-meals").value = String(state.planner.mealsPerDay);
   $("plan-split").innerHTML = splitForMeals().map(function (row) {
-    return '<div class="plan-row"><span>' + esc(row[0]) + " · " + row[1] + '%</span>' +
+    return '<div class="plan-row"><span>' + esc(mealLabel(row[0])) + " · " + row[1] + '%</span>' +
       '<span class="plan-kcal">' + Math.round(target * row[1] / 100) + " kcal</span></div>";
   }).join("");
   $("plan-ingredients").value = (state.planner.ingredients || []).join(", ");
@@ -1581,7 +1621,7 @@ function renderRecipeMatches() {
   var have = (state.planner.ingredients || []).map(normalizeIng).filter(Boolean);
   var box = $("plan-recipes");
   if (!have.length) {
-    box.innerHTML = '<p class="hint">No ingredients saved yet. Add what you have above, or use the generator below if the kitchen is empty.</p>';
+    box.innerHTML = '<p class="hint">' + esc(t("planner.noIngredients")) + "</p>";
     return;
   }
   var scored = RECIPES.map(function (r) {
@@ -1595,15 +1635,14 @@ function renderRecipeMatches() {
   }).filter(function (s) { return s.haveIngs.length > 0; })
     .sort(function (a, b) { return b.score - a.score; });
   if (!scored.length) {
-    box.innerHTML = '<p class="hint">None of the built-in recipes use those ingredients. Try adding staples like eggs, rice, chicken breast, beans, or yogurt.</p>';
+    box.innerHTML = '<p class="hint">' + esc(t("planner.noneMatch")) + "</p>";
     return;
   }
   box.innerHTML = scored.map(function (s) {
     return '<div class="recipe"><h3>' + esc(s.recipe.name) + "</h3>" +
-      '<div class="recipe-meta">' + s.recipe.kcal + " kcal · " + s.recipe.protein + " g protein · you have " +
-      s.haveIngs.length + " of " + s.recipe.ingredients.length + " ingredients</div>" +
-      '<div class="have">Have: ' + s.haveIngs.map(esc).join(", ") + "</div>" +
-      (s.missing.length ? '<div class="missing">Still need: ' + s.missing.map(esc).join(", ") + "</div>" : '<div class="have">You have everything for this one.</div>') +
+      '<div class="recipe-meta">' + esc(t("planner.haveN", { kcal: s.recipe.kcal, protein: s.recipe.protein, have: s.haveIngs.length, total: s.recipe.ingredients.length })) + "</div>" +
+      '<div class="have">' + esc(t("planner.have", { list: s.haveIngs.join(", ") })) + "</div>" +
+      (s.missing.length ? '<div class="missing">' + esc(t("planner.need", { list: s.missing.join(", ") })) + "</div>" : '<div class="have">' + esc(t("planner.haveAll")) + "</div>") +
       "</div>";
   }).join("");
 }
@@ -1641,14 +1680,13 @@ function generatePlan() {
     p.recipe.ingredients.forEach(function (ing) { shop[ing] = (shop[ing] || 0) + 1; });
   });
   var html = picks.map(function (p) {
-    return '<div class="recipe"><h3>' + esc(p.meal) + " — " + esc(p.recipe.name) + "</h3>" +
-      '<div class="recipe-meta">Slot target ~' + p.slotKcal + " kcal · recipe " + p.recipe.kcal + " kcal · " +
-      p.recipe.protein + " g protein</div>" +
-      "<div>Ingredients: " + p.recipe.ingredients.map(esc).join(", ") + "</div></div>";
+    return '<div class="recipe"><h3>' + esc(mealLabel(p.meal)) + " — " + esc(p.recipe.name) + "</h3>" +
+      '<div class="recipe-meta">' + esc(t("planner.slotLine", { slot: p.slotKcal, kcal: p.recipe.kcal, protein: p.recipe.protein })) + "</div>" +
+      "<div>" + esc(t("planner.ingredients", { list: p.recipe.ingredients.join(", ") })) + "</div></div>";
   }).join("");
-  html += '<div class="recipe"><h3>Day total</h3><div class="recipe-meta">Recipes add up to about ' + totalKcal +
-    " kcal against your " + target + " kcal target. Swap a snack or adjust portions to close the gap.</div></div>";
-  html += '<div class="recipe"><h3>Shopping list</h3><ul class="shop-list">' +
+  html += '<div class="recipe"><h3>' + esc(t("planner.dayTotal")) + '</h3><div class="recipe-meta">' +
+    esc(t("planner.dayTotalLine", { total: totalKcal, target: target })) + "</div></div>";
+  html += '<div class="recipe"><h3>' + esc(t("planner.shopping")) + '</h3><ul class="shop-list">' +
     Object.keys(shop).sort().map(function (ing) {
       return "<li>" + esc(ing) + (shop[ing] > 1 ? " (×" + shop[ing] + ")" : "") + "</li>";
     }).join("") + "</ul></div>";
@@ -1664,6 +1702,7 @@ function applyTheme() {
 
 function applyLanguage() {
   document.documentElement.lang = state.settings.language || "en";
+  applyI18n();
 }
 
 function renderSettings() {
@@ -1678,7 +1717,7 @@ function renderSettings() {
 
 /* ---------- First-run setup wizard ---------- */
 var GOAL_KCAL = { lose: 1800, maintain: 2000, gain: 2400 };
-var GOAL_TEXT = { lose: "Lose weight", maintain: "Maintain weight", gain: "Build & gain" };
+function goalText(g) { return t("goal." + g); }
 var setupStep = 1;
 var setupGoal = "maintain";
 
@@ -1687,9 +1726,9 @@ function setupShowStep(n) {
   document.querySelectorAll(".setup-step").forEach(function (el) {
     el.hidden = Number(el.getAttribute("data-step")) !== n;
   });
-  $("setup-progress").textContent = "Step " + n + " of 4";
+  $("setup-progress").textContent = t("setup.stepN", { n: n });
   $("setup-back").hidden = n === 1;
-  $("setup-next").textContent = n === 4 ? "Start tracking" : "Next";
+  $("setup-next").textContent = n === 4 ? t("setup.start") : t("common.next");
   if (n === 4) setupFillSummary();
 }
 
@@ -1707,9 +1746,9 @@ function setupSyncUnitLabels() {
 function setupFillSummary() {
   var cur = $("setup-current").value, tgt = $("setup-target-weight").value;
   var u = $("setup-unit").value === "kg" ? "kg" : "lb";
-  var s = "Goal: " + GOAL_TEXT[setupGoal] + ".";
-  if (cur) s += " Current weight: " + cur + " " + u + ".";
-  if (tgt) s += " Target weight: " + tgt + " " + u + ".";
+  var s = t("setup.summaryGoal", { goal: goalText(setupGoal) });
+  if (cur) s += t("setup.summaryCur", { w: cur, u: u });
+  if (tgt) s += t("setup.summaryTgt", { w: tgt, u: u });
   $("setup-summary").textContent = s;
 }
 
@@ -1775,7 +1814,7 @@ function downloadBackup() {
     a.remove();
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
     $("backup-status").className = "status";
-    $("backup-status").textContent = "Backup downloaded — it includes your logs, settings, and progress photos. Keep the file somewhere safe; it is the only copy.";
+    $("backup-status").textContent = t("backup.done");
   };
   if (window.Photos && window.Photos.exportPhotos) {
     window.Photos.exportPhotos().then(function (list) { payload.photos = list || []; done(); }).catch(function () { done(); });
@@ -1789,10 +1828,10 @@ function restoreBackup(file) {
     try { parsed = JSON.parse(reader.result); } catch (e) { parsed = null; }
     if (!parsed || parsed.app !== "calorie-counter" || !parsed.data || !parsed.data.settings) {
       $("backup-status").className = "status error";
-      $("backup-status").textContent = "That file is not a valid Calorie Counter backup.";
+      $("backup-status").textContent = t("backup.invalid");
       return;
     }
-    if (!window.confirm("Restore this backup? It will REPLACE everything currently saved in the app on this device.")) return;
+    if (!window.confirm(t("backup.confirmReplace"))) return;
     var fresh = defaultState();
     state = Object.assign(fresh, parsed.data);
     state.settings = Object.assign(defaultState().settings, parsed.data.settings);
@@ -1900,7 +1939,7 @@ function init() {
     var q = $("search-input").value.trim();
     if (!q) return;
     var status = $("search-status");
-    status.textContent = "Searching Open Food Facts and USDA…";
+    status.textContent = t("search.searching");
     status.className = "status";
     renderResults([]);
     var offP = searchOFF(q).catch(function () { return []; });
@@ -1908,10 +1947,10 @@ function init() {
     Promise.all([offP, usdaP]).then(function (both) {
       var results = both[0].concat(both[1]).slice(0, 16);
       if (!results.length) {
-        status.textContent = "No matches found in either database. Try a different spelling, or use the barcode lookup below.";
+        status.textContent = t("search.noMatches");
         status.className = "status error";
       } else {
-        status.textContent = results.length + " result" + (results.length === 1 ? "" : "s") + ". Set the amount, then Add.";
+        status.textContent = results.length === 1 ? t("search.result1") : t("search.resultsN", { n: results.length });
       }
       renderResults(results);
       // Voice dictation may have supplied a quantity: prefill the first
@@ -1929,7 +1968,7 @@ function init() {
     e.preventDefault();
     var code = $("barcode-input").value.replace(/\D/g, "");
     if (!code) {
-      $("barcode-status").textContent = "Enter a barcode number first.";
+      $("barcode-status").textContent = t("barcode.enterFirst");
       $("barcode-status").className = "status error";
       return;
     }
@@ -1981,8 +2020,8 @@ function init() {
       state.settings.waterGoalMl = gMl;
       saveState(); renderWater();
       $("water-status").textContent = waterImperial()
-        ? "Daily water goal saved: " + round1(gMl / ML_PER_OZ) + " fl oz."
-        : "Daily water goal saved: " + gMl + " ml.";
+        ? t("water.savedImp", { x: round1(gMl / ML_PER_OZ) })
+        : t("water.savedMet", { x: gMl });
     }
   });
 
@@ -2016,7 +2055,7 @@ function init() {
     var q = $("recipe-search-input").value.trim();
     if (!q) return;
     var status = $("recipe-search-status");
-    status.textContent = "Searching Open Food Facts and USDA…";
+    status.textContent = t("search.searching");
     status.className = "status";
     renderRecipeResults([]);
     var offP = searchOFF(q).catch(function () { return []; });
@@ -2024,10 +2063,10 @@ function init() {
     Promise.all([offP, usdaP]).then(function (both) {
       var results = both[0].concat(both[1]).slice(0, 12);
       if (!results.length) {
-        status.textContent = "No matches found. Try a different spelling.";
+        status.textContent = t("recipes.noMatches");
         status.className = "status error";
       } else {
-        status.textContent = results.length + " result" + (results.length === 1 ? "" : "s") + ". Set the amount, then Add ingredient.";
+        status.textContent = results.length === 1 ? t("recipes.result1") : t("recipes.resultsN", { n: results.length });
         status.className = "status";
       }
       renderRecipeResults(results);
@@ -2037,7 +2076,7 @@ function init() {
   $("recipe-cancel-edit").addEventListener("click", function () {
     resetRecipeDraft();
     renderRecipeBuilder();
-    $("recipe-status").textContent = "Editing cancelled.";
+    $("recipe-status").textContent = t("recipes.cancelledEdit");
     $("recipe-status").className = "status";
   });
 
@@ -2061,7 +2100,7 @@ function init() {
       state.weights.push({ date: t, kg: kg });
     }
     saveState(); renderSettings(); renderAll();
-    $("settings-status").textContent = "Settings saved.";
+    $("settings-status").textContent = t("settings.saved");
   });
 
   // Reminders
@@ -2080,29 +2119,29 @@ function init() {
     var status = $("rem-status");
     status.className = "status";
     if (!reminderCfg.enabled) {
-      status.textContent = "Reminders off and saved.";
+      status.textContent = t("reminders.offSaved");
       return;
     }
     if (!("Notification" in window)) {
-      status.textContent = "Reminders saved. This browser does not support notifications, so reminders appear as an in-app banner while the app is open.";
+      status.textContent = t("reminders.noSupport");
       checkReminders();
       return;
     }
     if (Notification.permission === "default") {
       Notification.requestPermission().then(function () {
         status.textContent = Notification.permission === "granted"
-          ? "Reminders saved. Notifications are on while the app is open or in the background."
-          : "Reminders saved. Notification permission was not granted, so reminders will appear as an in-app banner while the app is open.";
+          ? t("reminders.onBackground")
+          : t("reminders.deniedBanner");
         checkReminders();
       }).catch(function () {
-        status.textContent = "Reminders saved. Reminders will appear as an in-app banner while the app is open.";
+        status.textContent = t("reminders.deniedBanner");
         checkReminders();
       });
     } else if (Notification.permission === "granted") {
-      status.textContent = "Reminders saved. Notifications are on while the app is open or in the background.";
+      status.textContent = t("reminders.onBackground");
       checkReminders();
     } else {
-      status.textContent = "Reminders saved. Notifications are blocked for this site, so reminders will appear as an in-app banner while the app is open.";
+      status.textContent = t("reminders.blockedBanner");
       checkReminders();
     }
   });
@@ -2150,7 +2189,7 @@ function init() {
   });
 
   $("clear-data").addEventListener("click", function () {
-    askErase("This permanently erases ALL food logs, weigh-ins, water, meal plans, settings, favorites, recent foods, saved recipes, fasting history, and reminder settings stored on this device. Everything is stored only on this device, so there is no backup and this cannot be undone. Progress photos are erased separately, from the Photo Diary tab.", function () {
+    askErase(t("erase.settingsText"), function () {
       state = defaultState();
       EXTRA_KEYS.forEach(function (k) { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } });
       favorites = [];
@@ -2165,7 +2204,7 @@ function init() {
       waterDate = todayStr();
       saveState(); applyTheme(); applyLanguage(); renderSettings(); renderAll();
       $("search-results").innerHTML = "";
-      $("search-status").textContent = "All saved data on this device has been erased.";
+      $("search-status").textContent = t("erase.done");
     });
   });
 }

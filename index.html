@@ -17,10 +17,10 @@
 <header class="site-header">
   <div class="wrap header-flex">
     <div>
-      <h1><svg width="24" height="24" class="icon icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22c4.4 0 7.5-3 7.5-7.3 0-3.2-2-5.4-3.6-7.2C14.4 5.8 13 4 12.6 2c-3 1.8-4.4 4.3-4.6 6.7-.1 1 .1 2 .5 2.9-.7-.3-1.3-.9-1.9-1.8C5.4 11 4.5 12.8 4.5 14.7 4.5 19 7.6 22 12 22z"/></svg><span>Calorie Counter</span></h1>
-      <p class="tagline">Search real food databases, log your day, track your progress.</p>
+      <h1><svg width="24" height="24" class="icon icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22c4.4 0 7.5-3 7.5-7.3 0-3.2-2-5.4-3.6-7.2C14.4 5.8 13 4 12.6 2c-3 1.8-4.4 4.3-4.6 6.7-.1 1 .1 2 .5 2.9-.7-.3-1.3-.9-1.9-1.8C5.4 11 4.5 12.8 4.5 14.7 4.5 19 7.6 22 12 22z"/></svg><span data-i18n="app.title">Calorie Counter</span></h1>
+      <p class="tagline" data-i18n="app.tagline">Search real food databases, log your day, track your progress.</p>
     </div>
-    <label class="theme-picker">Theme
+    <label class="theme-picker"><span data-i18n="header.theme">Theme</span>
       <select id="theme-select" aria-label="Color theme">
         <option value="meadow">Meadow</option>
         <option value="ocean">Ocean</option>
@@ -33,16 +33,16 @@
   </div>
 </header>
 
-<nav class="tab-nav" aria-label="Main">
+<nav class="tab-nav" aria-label="Main" data-i18n-aria="aria.mainNav">
   <div class="wrap tab-nav-inner">
-    <button type="button" class="tab-btn active" data-tab="home"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5"/><path d="M9 21v-6h6v6"/></svg><span class="tab-label">Home</span></button>
-    <button type="button" class="tab-btn" data-tab="log"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/></svg><span class="tab-label">Log</span></button>
-    <button type="button" class="tab-btn" data-tab="trends"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m7 14 4-4 3 3 5-6"/></svg><span class="tab-label">Trends</span></button>
-    <button type="button" class="tab-btn" data-tab="water"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s6 6.6 6 11a6 6 0 0 1-12 0c0-4.4 6-11 6-11z"/></svg><span class="tab-label">Water</span></button>
-    <button type="button" class="tab-btn" data-tab="workouts"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5v11M3 9v6M17.5 6.5v11M21 9v6M6.5 12h11"/></svg><span class="tab-label">Workouts</span></button>
-    <button type="button" class="tab-btn" data-tab="planner"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 2v20M7 2v5M4 2v3a3 3 0 0 0 6 0V2"/><path d="M20 15V2a5 5 0 0 0-4 5v6a2 2 0 0 0 2 2h2zm0 0v7"/></svg><span class="tab-label">Meal Planner</span></button>
-    <button type="button" class="tab-btn" data-tab="photos"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h3l2-3h6l2 3h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="tab-label">Photo Diary</span></button>
-    <button type="button" class="tab-btn" data-tab="settings"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span class="tab-label">Settings</span></button>
+    <button type="button" class="tab-btn active" data-tab="home"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5"/><path d="M9 21v-6h6v6"/></svg><span class="tab-label" data-i18n="tab.home">Home</span></button>
+    <button type="button" class="tab-btn" data-tab="log"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/></svg><span class="tab-label" data-i18n="tab.log">Log</span></button>
+    <button type="button" class="tab-btn" data-tab="trends"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m7 14 4-4 3 3 5-6"/></svg><span class="tab-label" data-i18n="tab.trends">Trends</span></button>
+    <button type="button" class="tab-btn" data-tab="water"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s6 6.6 6 11a6 6 0 0 1-12 0c0-4.4 6-11 6-11z"/></svg><span class="tab-label" data-i18n="tab.water">Water</span></button>
+    <button type="button" class="tab-btn" data-tab="workouts"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5v11M3 9v6M17.5 6.5v11M21 9v6M6.5 12h11"/></svg><span class="tab-label" data-i18n="tab.workouts">Workouts</span></button>
+    <button type="button" class="tab-btn" data-tab="planner"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 2v20M7 2v5M4 2v3a3 3 0 0 0 6 0V2"/><path d="M20 15V2a5 5 0 0 0-4 5v6a2 2 0 0 0 2 2h2zm0 0v7"/></svg><span class="tab-label" data-i18n="tab.planner">Meal Planner</span></button>
+    <button type="button" class="tab-btn" data-tab="photos"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h3l2-3h6l2 3h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="tab-label" data-i18n="tab.photos">Photo Diary</span></button>
+    <button type="button" class="tab-btn" data-tab="settings"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span class="tab-label" data-i18n="tab.settings">Settings</span></button>
   </div>
 </nav>
 
@@ -50,7 +50,7 @@
 
   <div id="reminder-banner" class="reminder-banner" hidden>
     <span id="reminder-banner-text"></span>
-    <button type="button" class="btn btn-small" id="reminder-banner-dismiss">Dismiss</button>
+    <button type="button" class="btn btn-small" id="reminder-banner-dismiss" data-i18n="reminders.dismiss">Dismiss</button>
   </div>
 
   <!-- ============ HOME ============ -->
@@ -58,30 +58,30 @@
     <div class="card">
       <div class="summary-flex">
         <div class="ring-box">
-          <svg id="ring" width="170" height="170" viewBox="0 0 170 170" role="img" aria-label="Calories remaining today">
+          <svg id="ring" width="170" height="170" viewBox="0 0 170 170" role="img" aria-label="Calories remaining today" data-i18n-aria="aria.ring">
             <circle cx="85" cy="85" r="74" class="ring-bg"></circle>
             <circle cx="85" cy="85" r="74" class="ring-fg" id="ring-fg"></circle>
           </svg>
           <div class="ring-center">
             <div class="ring-remaining" id="ring-remaining">0</div>
-            <div class="ring-label">kcal remaining</div>
+            <div class="ring-label" data-i18n="home.ringRemaining">kcal remaining</div>
           </div>
         </div>
         <div class="summary-stats">
           <div>
-            <div class="stat"><span class="stat-num" id="stat-target">2000</span><span class="stat-label">Target</span></div>
-            <div class="stat"><span class="stat-num" id="stat-eaten">0</span><span class="stat-label">Eaten today</span></div>
-            <div class="stat"><span class="stat-num" id="home-items">0 items</span><span class="stat-label">Logged today</span></div>
+            <div class="stat"><span class="stat-num" id="stat-target">2000</span><span class="stat-label" data-i18n="home.target">Target</span></div>
+            <div class="stat"><span class="stat-num" id="stat-eaten">0</span><span class="stat-label" data-i18n="home.eaten">Eaten today</span></div>
+            <div class="stat"><span class="stat-num" id="home-items">0 items</span><span class="stat-label" data-i18n="home.logged">Logged today</span></div>
           </div>
           <div class="macros">
-            <div class="macro"><span class="macro-name">Protein</span><div class="bar"><div class="bar-fill protein" id="bar-protein"></div></div><span class="macro-val" id="val-protein">0 g</span></div>
-            <div class="macro"><span class="macro-name">Carbs</span><div class="bar"><div class="bar-fill carbs" id="bar-carbs"></div></div><span class="macro-val" id="val-carbs">0 g</span></div>
-            <div class="macro"><span class="macro-name">Fat</span><div class="bar"><div class="bar-fill fat" id="bar-fat"></div></div><span class="macro-val" id="val-fat">0 g</span></div>
+            <div class="macro"><span class="macro-name" data-i18n="common.protein">Protein</span><div class="bar"><div class="bar-fill protein" id="bar-protein"></div></div><span class="macro-val" id="val-protein">0 g</span></div>
+            <div class="macro"><span class="macro-name" data-i18n="common.carbs">Carbs</span><div class="bar"><div class="bar-fill carbs" id="bar-carbs"></div></div><span class="macro-val" id="val-carbs">0 g</span></div>
+            <div class="macro"><span class="macro-name" data-i18n="common.fat">Fat</span><div class="bar"><div class="bar-fill fat" id="bar-fat"></div></div><span class="macro-val" id="val-fat">0 g</span></div>
           </div>
           <div class="home-quick">
-            <div class="stat"><span class="stat-num" id="home-streak">0 days</span><span class="stat-label">Logging streak</span></div>
-            <div class="stat"><span class="stat-num" id="home-goal">—</span><span class="stat-label">Goal</span></div>
-            <div class="stat"><span class="stat-num" id="home-avg7">—</span><span class="stat-label">7-day average (logged days)</span></div>
+            <div class="stat"><span class="stat-num" id="home-streak">0 days</span><span class="stat-label" data-i18n="home.streak">Logging streak</span></div>
+            <div class="stat"><span class="stat-num" id="home-goal">—</span><span class="stat-label" data-i18n="home.goal">Goal</span></div>
+            <div class="stat"><span class="stat-num" id="home-avg7">—</span><span class="stat-label" data-i18n="home.avg7">7-day average (logged days)</span></div>
           </div>
         </div>
       </div>
@@ -89,15 +89,15 @@
 
     <div class="card">
       <div class="cal-head">
-        <button type="button" id="cal-prev" class="btn btn-ghost" aria-label="Previous month">&larr;</button>
+        <button type="button" id="cal-prev" class="btn btn-ghost" aria-label="Previous month" data-i18n-aria="home.prevMonth">&larr;</button>
         <h2 id="cal-title">Month</h2>
-        <button type="button" id="cal-next" class="btn btn-ghost" aria-label="Next month">&rarr;</button>
+        <button type="button" id="cal-next" class="btn btn-ghost" aria-label="Next month" data-i18n-aria="home.nextMonth">&rarr;</button>
       </div>
       <div class="cal-grid cal-weekdays" aria-hidden="true">
-        <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+        <span data-i18n="wd.mo">Mo</span><span data-i18n="wd.tu">Tu</span><span data-i18n="wd.we">We</span><span data-i18n="wd.th">Th</span><span data-i18n="wd.fr">Fr</span><span data-i18n="wd.sa">Sa</span><span data-i18n="wd.su">Su</span>
       </div>
       <div class="cal-grid" id="cal-grid"></div>
-      <p class="hint">Tap a day to open it in the Log tab.</p>
+      <p class="hint" data-i18n="home.calHint">Tap a day to open it in the Log tab.</p>
     </div>
   </section>
 
@@ -105,85 +105,85 @@
   <section id="tab-log" class="tab-page" hidden>
     <div class="card">
       <div class="day-nav">
-        <button type="button" id="day-prev" class="btn btn-ghost">&larr; Prev day</button>
-        <input type="date" id="day-picker" aria-label="Choose day">
-        <button type="button" id="day-next" class="btn btn-ghost">Next day &rarr;</button>
-        <button type="button" id="day-today" class="btn btn-ghost">Today</button>
+        <button type="button" id="day-prev" class="btn btn-ghost" data-i18n="common.prevDay">&larr; Prev day</button>
+        <input type="date" id="day-picker" aria-label="Choose day" data-i18n-aria="aria.chooseDay">
+        <button type="button" id="day-next" class="btn btn-ghost" data-i18n="common.nextDay">Next day &rarr;</button>
+        <button type="button" id="day-today" class="btn btn-ghost" data-i18n="common.today">Today</button>
       </div>
       <p class="day-summary" id="log-day-summary"></p>
     </div>
 
     <div class="card">
-      <h2>Add food</h2>
+      <h2 data-i18n="log.addFood">Add food</h2>
       <form id="search-form" class="row">
-        <input type="search" id="search-input" placeholder="Search foods, e.g. greek yogurt, creatine, chicken breast" aria-label="Search foods" required>
-        <select id="meal-select" aria-label="Meal">
-          <option>Breakfast</option>
-          <option>Lunch</option>
-          <option>Dinner</option>
-          <option>Snack</option>
+        <input type="search" id="search-input" placeholder="Search foods, e.g. greek yogurt, creatine, chicken breast" aria-label="Search foods" data-i18n-ph="log.searchPh" data-i18n-aria="aria.searchFoods" required>
+        <select id="meal-select" aria-label="Meal" data-i18n-aria="common.meal">
+          <option value="Breakfast" data-i18n="meal.breakfast">Breakfast</option>
+          <option value="Lunch" data-i18n="meal.lunch">Lunch</option>
+          <option value="Dinner" data-i18n="meal.dinner">Dinner</option>
+          <option value="Snack" data-i18n="meal.snack">Snack</option>
         </select>
-        <button type="submit" class="btn btn-primary"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20.5 20.5-4.6-4.6"/></svg><span>Search</span></button>
-        <button type="button" id="voice-btn" class="btn" hidden><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg><span>Speak</span></button>
+        <button type="submit" class="btn btn-primary"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20.5 20.5-4.6-4.6"/></svg><span data-i18n="common.search">Search</span></button>
+        <button type="button" id="voice-btn" class="btn" hidden><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg><span data-i18n="voice.speak">Speak</span></button>
       </form>
-      <p class="hint">Sources: Open Food Facts (branded products) and USDA FoodData Central (generic foods). Values are per 100 g unless a serving is listed.</p>
-      <p class="hint" id="voice-note" hidden>Voice search is not supported in this browser — typing works everywhere.</p>
+      <p class="hint" data-i18n="log.sources">Sources: Open Food Facts (branded products) and USDA FoodData Central (generic foods). Values are per 100 g unless a serving is listed.</p>
+      <p class="hint" id="voice-note" data-i18n="voice.unsupported" hidden>Voice search is not supported in this browser — typing works everywhere.</p>
       <div id="search-status" class="status" role="status"></div>
       <ul id="search-results" class="results"></ul>
 
       <div id="favorites-box" hidden>
-        <h3 class="quick-title">Favorites</h3>
+        <h3 class="quick-title" data-i18n="quick.favorites">Favorites</h3>
         <div id="favorites-list" class="quick-list"></div>
       </div>
       <div id="recents-box" hidden>
-        <h3 class="quick-title">Recent foods</h3>
+        <h3 class="quick-title" data-i18n="quick.recents">Recent foods</h3>
         <div id="recents-list" class="quick-list"></div>
       </div>
 
       <hr>
       <form id="barcode-form" class="row">
-        <input type="text" id="barcode-input" inputmode="numeric" placeholder="Type or paste a barcode number" aria-label="Barcode">
-        <button type="submit" class="btn"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6v12M8.5 6v12M12 6v8M15.5 6v12M20 6v12"/></svg><span>Look up barcode</span></button>
-        <button type="button" id="scan-btn" class="btn"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M3 12h18"/></svg><span>Scan with camera</span></button>
+        <input type="text" id="barcode-input" inputmode="numeric" placeholder="Type or paste a barcode number" aria-label="Barcode" data-i18n-ph="log.barcodePh" data-i18n-aria="aria.barcode">
+        <button type="submit" class="btn"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6v12M8.5 6v12M12 6v8M15.5 6v12M20 6v12"/></svg><span data-i18n="log.lookupBarcode">Look up barcode</span></button>
+        <button type="button" id="scan-btn" class="btn"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M3 12h18"/></svg><span data-i18n="log.scanCamera">Scan with camera</span></button>
       </form>
       <div id="barcode-status" class="status" role="status"></div>
       <div id="scan-box" class="scan-box" hidden>
         <video id="scan-video" playsinline muted></video>
         <div id="scan-zxing" hidden></div>
         <div class="row">
-          <span id="scan-status" class="status">Point the camera at a barcode.</span>
-          <button type="button" id="scan-stop" class="btn btn-small">Stop camera</button>
+          <span id="scan-status" class="status" data-i18n="log.scanPoint">Point the camera at a barcode.</span>
+          <button type="button" id="scan-stop" class="btn btn-small" data-i18n="log.stopCamera">Stop camera</button>
         </div>
       </div>
     </div>
 
     <div class="card">
-      <h2>Food log</h2>
+      <h2 data-i18n="log.foodLog">Food log</h2>
       <div id="copy-yesterday" class="copy-row" hidden></div>
-      <div id="log-empty" class="hint">Nothing logged for this day yet. Search above to add your first food.</div>
+      <div id="log-empty" class="hint" data-i18n="log.empty">Nothing logged for this day yet. Search above to add your first food.</div>
       <div id="log-list"></div>
     </div>
 
     <div class="card" id="recipes-card">
-      <h2>My recipes</h2>
-      <p class="hint">Build a recipe from foods, set how many servings it makes, then log it by the serving — fractions like 0.5 work too. Logging uses the meal selected in Add food above.</p>
+      <h2 data-i18n="recipes.title">My recipes</h2>
+      <p class="hint" data-i18n="recipes.hint">Build a recipe from foods, set how many servings it makes, then log it by the serving — fractions like 0.5 work too. Logging uses the meal selected in Add food above.</p>
       <div id="recipe-list"></div>
       <h3 id="recipe-form-title">New recipe</h3>
       <div class="search-form">
-        <label class="grow">Name <input type="text" id="recipe-name" placeholder="e.g. Weeknight chili"></label>
-        <label>Servings <input type="number" id="recipe-servings" value="1" min="0.25" step="0.25"></label>
+        <label class="grow"><span data-i18n="recipes.name">Name</span> <input type="text" id="recipe-name" placeholder="e.g. Weeknight chili" data-i18n-ph="recipes.namePh"></label>
+        <label><span data-i18n="recipes.servings">Servings</span> <input type="number" id="recipe-servings" value="1" min="0.25" step="0.25"></label>
       </div>
       <div id="recipe-ingredients"></div>
       <div id="recipe-totals" class="hint"></div>
       <form id="recipe-search-form" class="search-form">
-        <label class="grow">Add an ingredient <input type="search" id="recipe-search-input" placeholder="Search foods, e.g. black beans" autocomplete="off"></label>
-        <button class="btn btn-primary" type="submit">Search</button>
+        <label class="grow"><span data-i18n="recipes.addIngredient">Add an ingredient</span> <input type="search" id="recipe-search-input" placeholder="Search foods, e.g. black beans" autocomplete="off" data-i18n-ph="recipes.searchPh"></label>
+        <button class="btn btn-primary" type="submit" data-i18n="common.search">Search</button>
       </form>
       <div id="recipe-search-status" class="status" role="status"></div>
       <ul id="recipe-search-results" class="results"></ul>
       <div class="row">
-        <button type="button" class="btn btn-primary" id="recipe-save">Save recipe</button>
-        <button type="button" class="btn btn-ghost" id="recipe-cancel-edit" hidden>Cancel editing</button>
+        <button type="button" class="btn btn-primary" id="recipe-save" data-i18n="recipes.save">Save recipe</button>
+        <button type="button" class="btn btn-ghost" id="recipe-cancel-edit" data-i18n="recipes.cancelEdit" hidden>Cancel editing</button>
       </div>
       <div id="recipe-status" class="status" role="status"></div>
     </div>
@@ -193,62 +193,62 @@
   <section id="tab-trends" class="tab-page" hidden>
     <div class="card">
       <div class="row space-between">
-        <h2>Calorie history</h2>
-        <div class="segmented" role="group" aria-label="Chart range">
-          <button type="button" class="seg-btn active" data-range="14">14 days</button>
-          <button type="button" class="seg-btn" data-range="30">30 days</button>
+        <h2 data-i18n="trends.calHistory">Calorie history</h2>
+        <div class="segmented" role="group" aria-label="Chart range" data-i18n-aria="aria.chartRange">
+          <button type="button" class="seg-btn active" data-range="14" data-i18n="trends.d14">14 days</button>
+          <button type="button" class="seg-btn" data-range="30" data-i18n="trends.d30">30 days</button>
         </div>
       </div>
       <div id="cal-chart" class="chart-box"></div>
-      <p class="hint">Dashed line is your daily calorie target.</p>
+      <p class="hint" data-i18n="trends.targetHint">Dashed line is your daily calorie target.</p>
     </div>
 
     <div class="card">
-      <h2>Macros — last 14 days (grams)</h2>
+      <h2 data-i18n="trends.macrosTitle">Macros — last 14 days (grams)</h2>
       <div class="legend">
-        <span><i class="swatch protein"></i>Protein</span>
-        <span><i class="swatch carbs"></i>Carbs</span>
-        <span><i class="swatch fat"></i>Fat</span>
+        <span><i class="swatch protein"></i><span data-i18n="common.protein">Protein</span></span>
+        <span><i class="swatch carbs"></i><span data-i18n="common.carbs">Carbs</span></span>
+        <span><i class="swatch fat"></i><span data-i18n="common.fat">Fat</span></span>
       </div>
       <div id="macro-chart" class="chart-box"></div>
     </div>
 
     <div class="card">
-      <h2>Weight</h2>
+      <h2 data-i18n="trends.weight">Weight</h2>
       <div class="weight-stats row">
-        <div class="stat"><span class="stat-num" id="weight-current">—</span><span class="stat-label">Current</span></div>
-        <div class="stat"><span class="stat-num" id="weight-target">—</span><span class="stat-label">Target</span></div>
-        <div class="stat"><span class="stat-num" id="weight-to-go">—</span><span class="stat-label">To go</span></div>
+        <div class="stat"><span class="stat-num" id="weight-current">—</span><span class="stat-label" data-i18n="weight.current">Current</span></div>
+        <div class="stat"><span class="stat-num" id="weight-target">—</span><span class="stat-label" data-i18n="weight.target">Target</span></div>
+        <div class="stat"><span class="stat-num" id="weight-to-go">—</span><span class="stat-label" data-i18n="weight.toGo">To go</span></div>
       </div>
       <div id="weight-chart" class="chart-box"></div>
       <form id="weight-form" class="row">
-        <input type="date" id="weight-date" aria-label="Weigh-in date" required>
-        <input type="number" id="weight-value" step="0.1" min="0" placeholder="Weight" aria-label="Weight" required>
+        <input type="date" id="weight-date" aria-label="Weigh-in date" data-i18n-aria="aria.weightDate" required>
+        <input type="number" id="weight-value" step="0.1" min="0" placeholder="Weight" aria-label="Weight" data-i18n-ph="weight.ph" data-i18n-aria="aria.weightValue" required>
         <span id="weight-unit-label">lb</span>
-        <button type="submit" class="btn btn-primary"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Add weigh-in</span></button>
+        <button type="submit" class="btn btn-primary"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span data-i18n="weight.add">Add weigh-in</span></button>
       </form>
       <ul id="weight-list" class="weight-list"></ul>
     </div>
 
     <div class="card">
       <div class="row space-between">
-        <h2>Micronutrients</h2>
-        <label class="inline-label">Day <input type="date" id="micro-date" aria-label="Micronutrient day"></label>
+        <h2 data-i18n="trends.micros">Micronutrients</h2>
+        <label class="inline-label"><span data-i18n="common.day">Day</span> <input type="date" id="micro-date" aria-label="Micronutrient day" data-i18n-aria="aria.microDay"></label>
       </div>
       <div id="micro-list" class="micro-list"></div>
-      <p class="hint">Totals are computed from the nutrients your logged foods report in Open Food Facts / USDA. Foods that do not publish a nutrient contribute 0 for it, so treat these as a floor, not an exact total.</p>
+      <p class="hint" data-i18n="trends.microsHint">Totals are computed from the nutrients your logged foods report in Open Food Facts / USDA. Foods that do not publish a nutrient contribute 0 for it, so treat these as a floor, not an exact total.</p>
     </div>
   </section>
 
   <!-- ============ WATER ============ -->
   <section id="tab-water" class="tab-page" hidden>
     <div class="card">
-      <h2>Water</h2>
+      <h2 data-i18n="tab.water">Water</h2>
       <div class="day-nav">
-        <button type="button" id="water-prev" class="btn btn-ghost">&larr; Prev day</button>
-        <input type="date" id="water-picker" aria-label="Choose day">
-        <button type="button" id="water-next" class="btn btn-ghost">Next day &rarr;</button>
-        <button type="button" id="water-today" class="btn btn-ghost">Today</button>
+        <button type="button" id="water-prev" class="btn btn-ghost" data-i18n="common.prevDay">&larr; Prev day</button>
+        <input type="date" id="water-picker" aria-label="Choose day" data-i18n-aria="aria.chooseDay">
+        <button type="button" id="water-next" class="btn btn-ghost" data-i18n="common.nextDay">Next day &rarr;</button>
+        <button type="button" id="water-today" class="btn btn-ghost" data-i18n="common.today">Today</button>
       </div>
       <div class="water-display">
         <div class="water-amount" id="water-amount">0 ml</div>
@@ -262,31 +262,31 @@
         <button type="button" class="btn" data-water-add="473">+ 16 oz</button>
       </div>
       <form id="water-custom-form" class="row">
-        <input type="number" id="water-custom" min="1" step="1" placeholder="Custom amount" aria-label="Custom water amount">
-        <select id="water-custom-unit" aria-label="Custom amount unit">
+        <input type="number" id="water-custom" min="1" step="1" placeholder="Custom amount" aria-label="Custom water amount" data-i18n-ph="water.customPh" data-i18n-aria="aria.waterCustom">
+        <select id="water-custom-unit" aria-label="Custom amount unit" data-i18n-aria="aria.waterUnit">
           <option value="ml">ml</option>
           <option value="oz">fl oz</option>
         </select>
-        <button type="submit" class="btn btn-primary"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Add</span></button>
-        <button type="button" id="water-reset" class="btn btn-danger">Reset day</button>
+        <button type="submit" class="btn btn-primary"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span data-i18n="common.add">Add</span></button>
+        <button type="button" id="water-reset" class="btn btn-danger" data-i18n="water.resetDay">Reset day</button>
       </form>
       <hr>
       <form id="water-goal-form" class="row">
-        <label class="inline-label">Daily goal · <span id="water-goal-unit">fl oz</span>
+        <label class="inline-label"><span data-i18n="water.dailyGoal">Daily goal ·</span> <span id="water-goal-unit">fl oz</span>
           <input type="number" id="water-goal" min="1" step="1">
         </label>
-        <button type="submit" class="btn">Save goal</button>
+        <button type="submit" class="btn" data-i18n="water.saveGoal">Save goal</button>
       </form>
       <div id="water-status" class="status" role="status"></div>
     </div>
 
     <div class="card" id="fasting-card">
-      <h2>Fasting</h2>
-      <p class="hint">Track an intermittent fast. The timer keeps running from the saved start time, even if you close and reopen the app.</p>
+      <h2 data-i18n="fasting.title">Fasting</h2>
+      <p class="hint" data-i18n="fasting.hint">Track an intermittent fast. The timer keeps running from the saved start time, even if you close and reopen the app.</p>
       <div id="fasting-idle">
-        <div class="segmented" id="fasting-targets" role="group" aria-label="Fasting target hours"></div>
+        <div class="segmented" id="fasting-targets" role="group" aria-label="Fasting target hours" data-i18n-aria="aria.fastingTargets"></div>
         <div class="row">
-          <button type="button" class="btn btn-primary" id="fasting-start">Start fast</button>
+          <button type="button" class="btn btn-primary" id="fasting-start" data-i18n="fasting.start">Start fast</button>
         </div>
       </div>
       <div id="fasting-live" hidden>
@@ -297,27 +297,27 @@
         <div class="bar"><div class="bar-fill" id="fasting-bar"></div></div>
         <p class="water-pct" id="fasting-pct"></p>
         <div class="row">
-          <button type="button" class="btn btn-primary" id="fasting-end">End fast</button>
-          <button type="button" class="btn btn-ghost" id="fasting-cancel">Cancel fast</button>
+          <button type="button" class="btn btn-primary" id="fasting-end" data-i18n="fasting.end">End fast</button>
+          <button type="button" class="btn btn-ghost" id="fasting-cancel" data-i18n="fasting.cancel">Cancel fast</button>
         </div>
       </div>
       <div id="fasting-status" class="status" role="status"></div>
-      <h3>Past fasts</h3>
-      <div id="fasting-history"><p class="hint">No fasts recorded yet.</p></div>
+      <h3 data-i18n="fasting.past">Past fasts</h3>
+      <div id="fasting-history"><p class="hint" data-i18n="fasting.none">No fasts recorded yet.</p></div>
     </div>
   </section>
 
   <!-- ============ WORKOUTS ============ -->
   <section id="tab-workouts" class="tab-page" hidden>
     <div class="card">
-      <h2>At-home workouts</h2>
-      <p class="hint">Bodyweight and minimal-equipment exercises with animated form demos. Watch the figure: the highlighted caption matches the part of the movement on screen. Tap pause on any demo to freeze it.</p>
-      <div class="segmented wrap-seg" role="group" aria-label="Exercise group" id="wk-filters">
-        <button type="button" class="seg-btn active" data-wk-group="All">All</button>
-        <button type="button" class="seg-btn" data-wk-group="Push">Push</button>
-        <button type="button" class="seg-btn" data-wk-group="Pull">Pull</button>
-        <button type="button" class="seg-btn" data-wk-group="Legs &amp; Core">Legs &amp; Core</button>
-        <button type="button" class="seg-btn" data-wk-group="Full-Body">Full-Body</button>
+      <h2 data-i18n="workouts.title">At-home workouts</h2>
+      <p class="hint" data-i18n="workouts.hint">Bodyweight and minimal-equipment exercises with animated form demos. Watch the figure: the highlighted caption matches the part of the movement on screen. Tap pause on any demo to freeze it.</p>
+      <div class="segmented wrap-seg" role="group" aria-label="Exercise group" data-i18n-aria="aria.wkGroup" id="wk-filters">
+        <button type="button" class="seg-btn active" data-wk-group="All" data-i18n="wk.all">All</button>
+        <button type="button" class="seg-btn" data-wk-group="Push" data-i18n="wk.push">Push</button>
+        <button type="button" class="seg-btn" data-wk-group="Pull" data-i18n="wk.pull">Pull</button>
+        <button type="button" class="seg-btn" data-wk-group="Legs &amp; Core" data-i18n="wk.legsCore">Legs &amp; Core</button>
+        <button type="button" class="seg-btn" data-wk-group="Full-Body" data-i18n="wk.fullBody">Full-Body</button>
       </div>
       <div id="wk-list" class="wk-list"></div>
     </div>
@@ -326,34 +326,34 @@
   <!-- ============ MEAL PLANNER ============ -->
   <section id="tab-planner" class="tab-page" hidden>
     <div class="card">
-      <h2>Daily plan</h2>
+      <h2 data-i18n="planner.dailyPlan">Daily plan</h2>
       <p class="hint" id="plan-target-note"></p>
-      <label class="inline-label">Meals per day
+      <label class="inline-label"><span data-i18n="planner.mealsPerDay">Meals per day</span>
         <select id="plan-meals">
-          <option value="3">3 meals</option>
-          <option value="4">4 (3 meals + snack)</option>
-          <option value="5">5 (3 meals + 2 snacks)</option>
-          <option value="6">6 (3 meals + 3 snacks)</option>
-          <option value="7">7 (3 meals + 4 snacks)</option>
+          <option value="3" data-i18n="planner.m3">3 meals</option>
+          <option value="4" data-i18n="planner.m4">4 (3 meals + snack)</option>
+          <option value="5" data-i18n="planner.m5">5 (3 meals + 2 snacks)</option>
+          <option value="6" data-i18n="planner.m6">6 (3 meals + 3 snacks)</option>
+          <option value="7" data-i18n="planner.m7">7 (3 meals + 4 snacks)</option>
         </select>
       </label>
       <div id="plan-split" class="plan-split"></div>
     </div>
 
     <div class="card">
-      <h2>What is in your kitchen?</h2>
-      <p class="hint">List the ingredients you have at home (comma separated). Recipes below are matched against what you already have.</p>
-      <textarea id="plan-ingredients" rows="3" placeholder="e.g. eggs, spinach, chicken breast, rice, Greek yogurt"></textarea>
+      <h2 data-i18n="planner.kitchen">What is in your kitchen?</h2>
+      <p class="hint" data-i18n="planner.kitchenHint">List the ingredients you have at home (comma separated). Recipes below are matched against what you already have.</p>
+      <textarea id="plan-ingredients" rows="3" placeholder="e.g. eggs, spinach, chicken breast, rice, Greek yogurt" data-i18n-ph="planner.kitchenPh"></textarea>
       <div class="row">
-        <button type="button" id="plan-save-ingredients" class="btn btn-primary">Find matching recipes</button>
+        <button type="button" id="plan-save-ingredients" class="btn btn-primary" data-i18n="planner.find">Find matching recipes</button>
       </div>
       <div id="plan-recipes" class="plan-recipes"></div>
     </div>
 
     <div class="card">
-      <h2>Empty kitchen?</h2>
-      <p class="hint">Generate a full day of recipes that fits your calorie split, plus a shopping list for everything you need.</p>
-      <button type="button" id="plan-generate" class="btn btn-primary">Generate a day plan + shopping list</button>
+      <h2 data-i18n="planner.emptyKitchen">Empty kitchen?</h2>
+      <p class="hint" data-i18n="planner.emptyHint">Generate a full day of recipes that fits your calorie split, plus a shopping list for everything you need.</p>
+      <button type="button" id="plan-generate" class="btn btn-primary" data-i18n="planner.generate">Generate a day plan + shopping list</button>
       <div id="plan-output" class="plan-output"></div>
     </div>
   </section>
@@ -361,85 +361,85 @@
   <!-- ============ PHOTO DIARY ============ -->
   <section id="tab-photos" class="tab-page" hidden>
     <div class="card">
-      <h2>Progress photos</h2>
-      <p class="hint">Photos are stored only on this device (in your browser's IndexedDB) — they are never uploaded. The faint "ghost" image is your previous photo from the same angle, so you can line up the same framing every time.</p>
+      <h2 data-i18n="photos.title">Progress photos</h2>
+      <p class="hint" data-i18n="photos.hint">Photos are stored only on this device (in your browser's IndexedDB) — they are never uploaded. The faint "ghost" image is your previous photo from the same angle, so you can line up the same framing every time.</p>
       <div class="row">
-        <label class="inline-label">Date <input type="date" id="photo-date"></label>
-        <div class="segmented" role="group" aria-label="Photo angle" id="photo-angles">
-          <button type="button" class="seg-btn active" data-photo-angle="front">Front</button>
-          <button type="button" class="seg-btn" data-photo-angle="side">Side</button>
-          <button type="button" class="seg-btn" data-photo-angle="back">Back</button>
+        <label class="inline-label"><span data-i18n="common.date">Date</span> <input type="date" id="photo-date"></label>
+        <div class="segmented" role="group" aria-label="Photo angle" data-i18n-aria="aria.photoAngle" id="photo-angles">
+          <button type="button" class="seg-btn active" data-photo-angle="front" data-i18n="photos.front">Front</button>
+          <button type="button" class="seg-btn" data-photo-angle="side" data-i18n="photos.side">Side</button>
+          <button type="button" class="seg-btn" data-photo-angle="back" data-i18n="photos.back">Back</button>
         </div>
       </div>
 
       <div class="photo-frame" id="photo-frame">
         <img id="photo-ghost" class="photo-ghost" alt="" hidden>
         <video id="photo-video" playsinline muted hidden></video>
-        <img id="photo-preview" alt="Selected photo preview" hidden>
+        <img id="photo-preview" alt="Selected photo preview" data-i18n-alt="photos.previewAlt" hidden>
         <div class="photo-outline" aria-hidden="true"></div>
-        <span class="photo-frame-label" id="photo-frame-label">No camera active — choose a photo or start the camera.</span>
+        <span class="photo-frame-label" id="photo-frame-label" data-i18n="photos.frameIdle">No camera active — choose a photo or start the camera.</span>
       </div>
 
       <div class="row">
-        <input type="file" id="photo-file" accept="image/*" aria-label="Choose a photo from this device">
-        <button type="button" id="photo-save-file" class="btn btn-primary" disabled>Save photo</button>
+        <input type="file" id="photo-file" accept="image/*" aria-label="Choose a photo from this device" data-i18n-aria="aria.photoFile">
+        <button type="button" id="photo-save-file" class="btn btn-primary" data-i18n="photos.save" disabled>Save photo</button>
       </div>
       <div class="row">
-        <button type="button" id="photo-cam-start" class="btn">Start camera</button>
-        <button type="button" id="photo-cam-capture" class="btn btn-primary" disabled>Capture</button>
-        <button type="button" id="photo-cam-stop" class="btn" disabled>Stop camera</button>
+        <button type="button" id="photo-cam-start" class="btn" data-i18n="photos.camStart">Start camera</button>
+        <button type="button" id="photo-cam-capture" class="btn btn-primary" data-i18n="photos.capture" disabled>Capture</button>
+        <button type="button" id="photo-cam-stop" class="btn" data-i18n="photos.camStop" disabled>Stop camera</button>
       </div>
       <div id="photo-status" class="status" role="status"></div>
     </div>
 
     <div class="card">
-      <h2>Time-lapse</h2>
+      <h2 data-i18n="photos.timelapse">Time-lapse</h2>
       <div class="row">
-        <label class="inline-label">Angle
+        <label class="inline-label"><span data-i18n="photos.angle">Angle</span>
           <select id="tl-angle">
-            <option value="front">Front</option>
-            <option value="side">Side</option>
-            <option value="back">Back</option>
+            <option value="front" data-i18n="photos.front">Front</option>
+            <option value="side" data-i18n="photos.side">Side</option>
+            <option value="back" data-i18n="photos.back">Back</option>
           </select>
         </label>
-        <button type="button" id="tl-play" class="btn btn-primary">Play time-lapse</button>
-        <button type="button" id="tl-stop" class="btn" disabled>Stop</button>
+        <button type="button" id="tl-play" class="btn btn-primary" data-i18n="photos.play">Play time-lapse</button>
+        <button type="button" id="tl-stop" class="btn" data-i18n="photos.stop" disabled>Stop</button>
       </div>
       <div class="photo-frame tl-frame">
-        <img id="tl-viewer" alt="Time-lapse viewer" hidden>
-        <span class="photo-frame-label" id="tl-caption">Pick an angle and press play.</span>
+        <img id="tl-viewer" alt="Time-lapse viewer" data-i18n-alt="photos.tlAlt" hidden>
+        <span class="photo-frame-label" id="tl-caption" data-i18n="photos.tlCaption">Pick an angle and press play.</span>
       </div>
     </div>
 
     <div class="card">
-      <h2>Your photos</h2>
+      <h2 data-i18n="photos.yours">Your photos</h2>
       <div id="photo-gallery" class="photo-gallery"></div>
-      <button type="button" id="photo-erase-all" class="btn btn-danger">Erase all progress photos</button>
+      <button type="button" id="photo-erase-all" class="btn btn-danger" data-i18n="photos.eraseAll">Erase all progress photos</button>
     </div>
   </section>
 
   <!-- ============ SETTINGS ============ -->
   <section id="tab-settings" class="tab-page" hidden>
     <div class="card">
-      <h2>Settings</h2>
+      <h2 data-i18n="settings.title">Settings</h2>
       <form id="settings-form" class="settings-grid">
-        <label>Daily calorie target <span class="unit-note">kcal</span>
+        <label><span data-i18n="settings.target">Daily calorie target</span> <span class="unit-note">kcal</span>
           <input type="number" id="set-target" min="500" max="10000" step="10" required>
         </label>
-        <label>Goal
+        <label><span data-i18n="settings.goal">Goal</span>
           <select id="set-goal">
-            <option value="lose">Lose weight</option>
-            <option value="maintain">Maintain weight</option>
-            <option value="gain">Build &amp; gain</option>
+            <option value="lose" data-i18n="goal.lose">Lose weight</option>
+            <option value="maintain" data-i18n="goal.maintain">Maintain weight</option>
+            <option value="gain" data-i18n="goal.gain">Build &amp; gain</option>
           </select>
         </label>
-        <label>Units
+        <label><span data-i18n="settings.units">Units</span>
           <select id="set-unit">
-            <option value="lb">Imperial — lb, fl oz</option>
-            <option value="kg">Metric — kg, ml</option>
+            <option value="lb" data-i18n="units.imperial">Imperial — lb, fl oz</option>
+            <option value="kg" data-i18n="units.metric">Metric — kg, ml</option>
           </select>
         </label>
-        <label>Language
+        <label><span data-i18n="settings.language">Language</span>
           <select id="set-language">
             <option value="en">English</option>
             <option value="es">Español</option>
@@ -451,37 +451,37 @@
             <option value="ja">日本語</option>
           </select>
         </label>
-        <label>Current weight <span class="set-unit-name unit-note">lb</span>
-          <input type="number" id="set-current-weight" step="0.1" min="0" placeholder="Optional">
+        <label><span data-i18n="settings.currentWeight">Current weight</span> <span class="set-unit-name unit-note">lb</span>
+          <input type="number" id="set-current-weight" step="0.1" min="0" placeholder="Optional" data-i18n-ph="common.optional">
         </label>
-        <label>Target weight <span class="set-unit-name unit-note">lb</span>
-          <input type="number" id="set-target-weight" step="0.1" min="0" placeholder="Optional">
+        <label><span data-i18n="settings.targetWeight">Target weight</span> <span class="set-unit-name unit-note">lb</span>
+          <input type="number" id="set-target-weight" step="0.1" min="0" placeholder="Optional" data-i18n-ph="common.optional">
         </label>
-        <button type="submit" class="btn btn-primary">Save settings</button>
+        <button type="submit" class="btn btn-primary" data-i18n="settings.save">Save settings</button>
       </form>
       <div id="settings-status" class="status" role="status"></div>
       <div class="settings-actions">
-        <button type="button" id="redo-setup" class="btn">Run the setup walkthrough</button>
-        <button type="button" id="export-data" class="btn">Download a backup</button>
-        <button type="button" id="import-data" class="btn">Restore from a backup</button>
+        <button type="button" id="redo-setup" class="btn" data-i18n="settings.redo">Run the setup walkthrough</button>
+        <button type="button" id="export-data" class="btn" data-i18n="settings.backup">Download a backup</button>
+        <button type="button" id="import-data" class="btn" data-i18n="settings.restore">Restore from a backup</button>
         <input type="file" id="import-file" accept="application/json,.json" hidden>
       </div>
       <div id="backup-status" class="status" role="status"></div>
       <hr>
-      <h3>Meal reminders</h3>
-      <p class="hint">Gentle nudges when a meal time has passed and nothing is logged for it yet. Reminders work while the app is open or running in the background on supported browsers — a web app cannot guarantee notifications while it is fully closed.</p>
-      <label class="check"><input type="checkbox" id="rem-enabled"> Meal reminders on</label>
+      <h3 data-i18n="reminders.title">Meal reminders</h3>
+      <p class="hint" data-i18n="reminders.hint">Gentle nudges when a meal time has passed and nothing is logged for it yet. Reminders work while the app is open or running in the background on supported browsers — a web app cannot guarantee notifications while it is fully closed.</p>
+      <label class="check"><input type="checkbox" id="rem-enabled"> <span data-i18n="reminders.on">Meal reminders on</span></label>
       <div class="settings-grid">
-        <label>Lunch reminder <input type="time" id="rem-lunch" value="12:30"></label>
-        <label>Dinner reminder <input type="time" id="rem-dinner" value="18:30"></label>
+        <label><span data-i18n="reminders.lunch">Lunch reminder</span> <input type="time" id="rem-lunch" value="12:30"></label>
+        <label><span data-i18n="reminders.dinner">Dinner reminder</span> <input type="time" id="rem-dinner" value="18:30"></label>
       </div>
       <div class="row">
-        <button type="button" class="btn btn-primary" id="rem-save">Save reminders</button>
+        <button type="button" class="btn btn-primary" id="rem-save" data-i18n="reminders.save">Save reminders</button>
       </div>
       <div id="rem-status" class="status" role="status"></div>
       <hr>
-      <p class="hint">Settings, food logs, water, and planner data are stored only in this browser (localStorage) on this device. Progress photos are stored in this browser's IndexedDB. There are no accounts in this version and nothing is uploaded to a server.</p>
-      <button type="button" id="clear-data" class="btn btn-danger">Erase all saved data on this device</button>
+      <p class="hint" data-i18n="settings.storageHint">Settings, food logs, water, and planner data are stored only in this browser (localStorage) on this device. Progress photos are stored in this browser's IndexedDB. There are no accounts in this version and nothing is uploaded to a server.</p>
+      <button type="button" id="clear-data" class="btn btn-danger" data-i18n="settings.eraseAll">Erase all saved data on this device</button>
     </div>
   </section>
 
@@ -489,7 +489,7 @@
 
 <footer class="site-footer">
   <div class="wrap">
-    <p><strong>Calorie Counter.</strong> Your food logs, weight entries, water, plans, and settings are saved only in this browser on this device — there are no accounts and nothing is uploaded to a server. Progress photos stay in this browser's local database. Nutrition data comes from the Open Food Facts and USDA FoodData Central public databases; values are as published by those sources.</p>
+    <p><strong data-i18n="app.title">Calorie Counter</strong><span data-i18n="footer.text">. Your food logs, weight entries, water, plans, and settings are saved only in this browser on this device — there are no accounts and nothing is uploaded to a server. Progress photos stay in this browser's local database. Nutrition data comes from the Open Food Facts and USDA FoodData Central public databases; values are as published by those sources.</span></p>
   </div>
 </footer>
 
@@ -497,53 +497,53 @@
     <div class="modal setup-modal" role="dialog" aria-modal="true" aria-labelledby="setup-title">
       <p class="setup-progress" id="setup-progress">Step 1 of 4</p>
       <div class="setup-step" data-step="1">
-        <h3 id="setup-title">Welcome to Calorie Counter</h3>
-        <p>Here is what it does for you:</p>
+        <h3 id="setup-title" data-i18n="setup.welcome">Welcome to Calorie Counter</h3>
+        <p data-i18n="setup.intro">Here is what it does for you:</p>
         <ul class="setup-list">
-          <li><strong>Log meals fast</strong> — search real foods or scan a barcode.</li>
-          <li><strong>See your day at a glance</strong> — calorie ring, macros, and trends.</li>
-          <li><strong>Track water, weight, and workouts</strong> — all in one place.</li>
-          <li><strong>Meal plans built around your goals</strong> — set up in the next steps.</li>
-          <li><strong>Private by design</strong> — everything is stored only on this device.</li>
+          <li><strong data-i18n="setup.f1t">Log meals fast</strong><span data-i18n="setup.f1d"> — search real foods or scan a barcode.</span></li>
+          <li><strong data-i18n="setup.f2t">See your day at a glance</strong><span data-i18n="setup.f2d"> — calorie ring, macros, and trends.</span></li>
+          <li><strong data-i18n="setup.f3t">Track water, weight, and workouts</strong><span data-i18n="setup.f3d"> — all in one place.</span></li>
+          <li><strong data-i18n="setup.f4t">Meal plans built around your goals</strong><span data-i18n="setup.f4d"> — set up in the next steps.</span></li>
+          <li><strong data-i18n="setup.f5t">Private by design</strong><span data-i18n="setup.f5d"> — everything is stored only on this device.</span></li>
         </ul>
       </div>
       <div class="setup-step" data-step="2" hidden>
-        <h3>What is your goal?</h3>
+        <h3 data-i18n="setup.goalTitle">What is your goal?</h3>
         <div class="segmented wrap-seg" id="setup-goals">
-          <button type="button" class="seg-btn" data-goal="lose">Lose weight</button>
-          <button type="button" class="seg-btn" data-goal="maintain">Maintain weight</button>
-          <button type="button" class="seg-btn" data-goal="gain">Build &amp; gain</button>
+          <button type="button" class="seg-btn" data-goal="lose" data-i18n="goal.lose">Lose weight</button>
+          <button type="button" class="seg-btn" data-goal="maintain" data-i18n="goal.maintain">Maintain weight</button>
+          <button type="button" class="seg-btn" data-goal="gain" data-i18n="goal.gain">Build &amp; gain</button>
         </div>
-        <label class="setup-field">Units
+        <label class="setup-field"><span data-i18n="settings.units">Units</span>
           <select id="setup-unit">
-            <option value="lb">Imperial — lb, fl oz</option>
-            <option value="kg">Metric — kg, ml</option>
+            <option value="lb" data-i18n="units.imperial">Imperial — lb, fl oz</option>
+            <option value="kg" data-i18n="units.metric">Metric — kg, ml</option>
           </select>
         </label>
       </div>
       <div class="setup-step" data-step="3" hidden>
-        <h3>Where are you starting from?</h3>
-        <label class="setup-field">Current weight <span class="unit-note setup-unit-name">lb</span>
+        <h3 data-i18n="setup.startTitle">Where are you starting from?</h3>
+        <label class="setup-field"><span data-i18n="settings.currentWeight">Current weight</span> <span class="unit-note setup-unit-name">lb</span>
           <input type="number" id="setup-current" step="0.1" min="0" inputmode="decimal" placeholder="e.g. 180">
         </label>
-        <label class="setup-field">Target weight <span class="unit-note setup-unit-name">lb</span>
+        <label class="setup-field"><span data-i18n="settings.targetWeight">Target weight</span> <span class="unit-note setup-unit-name">lb</span>
           <input type="number" id="setup-target-weight" step="0.1" min="0" inputmode="decimal" placeholder="e.g. 165">
         </label>
-        <p class="hint">You can change these anytime in Settings.</p>
+        <p class="hint" data-i18n="setup.changeAnytime">You can change these anytime in Settings.</p>
       </div>
       <div class="setup-step" data-step="4" hidden>
-        <h3>Your daily calorie target</h3>
+        <h3 data-i18n="setup.targetTitle">Your daily calorie target</h3>
         <p class="hint" id="setup-summary"></p>
-        <label class="setup-field">Daily calorie target <span class="unit-note">kcal</span>
+        <label class="setup-field"><span data-i18n="settings.target">Daily calorie target</span> <span class="unit-note">kcal</span>
           <input type="number" id="setup-target" step="10" min="500" max="10000">
         </label>
-        <p class="hint">A starting point based on your goal — your home ring and meal planner build around it. Fine-tune anytime in Settings.</p>
+        <p class="hint" data-i18n="setup.targetHint">A starting point based on your goal — your home ring and meal planner build around it. Fine-tune anytime in Settings.</p>
       </div>
       <div class="row modal-actions setup-nav">
-        <button type="button" id="setup-skip" class="btn btn-ghost">Skip for now</button>
+        <button type="button" id="setup-skip" class="btn btn-ghost" data-i18n="setup.skip">Skip for now</button>
         <span>
-          <button type="button" id="setup-back" class="btn" hidden>Back</button>
-          <button type="button" id="setup-next" class="btn btn-primary">Next</button>
+          <button type="button" id="setup-back" class="btn" data-i18n="common.back" hidden>Back</button>
+          <button type="button" id="setup-next" class="btn btn-primary" data-i18n="common.next">Next</button>
         </span>
       </div>
     </div>
@@ -551,18 +551,19 @@
 
 <div id="erase-modal" class="modal-backdrop" hidden>
     <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="erase-title" aria-describedby="erase-text">
-      <h3 id="erase-title">Are you absolutely sure?</h3>
+      <h3 id="erase-title" data-i18n="erase.title">Are you absolutely sure?</h3>
       <p id="erase-text"></p>
-      <p>Type <strong>ERASE</strong> to confirm:</p>
-      <input type="text" id="erase-input" autocomplete="off" autocapitalize="characters" placeholder="ERASE" aria-label="Type ERASE to confirm">
+      <p data-i18n="erase.typePrompt">Type ERASE to confirm:</p>
+      <input type="text" id="erase-input" autocomplete="off" autocapitalize="characters" placeholder="ERASE" aria-label="Type ERASE to confirm" data-i18n-aria="aria.eraseInput">
       <div class="row modal-actions">
-        <button type="button" id="erase-cancel" class="btn">Cancel</button>
-        <button type="button" id="erase-confirm" class="btn btn-danger" disabled>Erase permanently</button>
+        <button type="button" id="erase-cancel" class="btn" data-i18n="common.cancel">Cancel</button>
+        <button type="button" id="erase-confirm" class="btn btn-danger" data-i18n="erase.confirm" disabled>Erase permanently</button>
       </div>
     </div>
   </div>
 
 <script src="html5-qrcode.min.js" defer></script>
+<script src="i18n.js" defer></script>
 <script src="recipes.js" defer></script>
 <script src="fasting.js" defer></script>
 <script src="app.js" defer></script>

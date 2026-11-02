@@ -109,6 +109,13 @@ var EXERCISES = [
 ];
 
 window.Workouts = (function () {
+
+  /* UI-chrome translation via the shared dictionary (i18n.js); exercise
+     names and instructions are content and stay as authored. */
+  function wkText(key) {
+    if (window.i18nLookup) return window.i18nLookup(document.documentElement.lang || "en", key);
+    return key;
+  }
   var figures = [];
   var active = false;
   var rafId = null;
@@ -145,7 +152,7 @@ window.Workouts = (function () {
       '<span data-cap="peak"><strong>Peak:</strong> ' + esc(ex.peak) + "</span>" +
       "</div>" +
       '<div class="wk-sets">' + esc(ex.sets) + "</div>" +
-      '<div class="wk-controls"><button type="button" class="btn btn-small" data-pause="' + idx + '">Pause</button></div>';
+      '<div class="wk-controls"><button type="button" class="btn btn-small" data-pause="' + idx + '">' + wkText("wk.pause") + "</button></div>";
 
     var lines = card.querySelectorAll("line.seg");
     var head = card.querySelector("[data-head]");
@@ -157,7 +164,7 @@ window.Workouts = (function () {
     figures.push(fig);
     card.querySelector("[data-pause]").addEventListener("click", function () {
       fig.playing = !fig.playing;
-      this.textContent = fig.playing ? "Pause" : "Play";
+      this.textContent = fig.playing ? wkText("wk.pause") : wkText("wk.play");
     });
     return card;
   }

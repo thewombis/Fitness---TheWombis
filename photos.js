@@ -17,6 +17,14 @@ window.Photos = (function () {
 
   function $(id) { return document.getElementById(id); }
 
+  /* UI-string translation via the shared dictionary (i18n.js); the
+     document language is set by app.js from settings.language. */
+  function pt(key, vars) {
+    if (window.i18nLookup) return window.i18nLookup(document.documentElement.lang || "en", key, vars);
+    return key;
+  }
+  function angleLabel(angle) { return pt("photos." + angle); }
+
   function todayStr() {
     var dt = new Date();
     var m = String(dt.getMonth() + 1).padStart(2, "0");
@@ -113,11 +121,11 @@ window.Photos = (function () {
         var last = mine[mine.length - 1];
         ghost.src = objUrl(last.blob);
         ghost.hidden = false;
-        label.textContent = "Ghost: your last " + currentAngle + " photo (" + last.date + "). Line yourself up with it, then capture or choose today's photo.";
+        label.textContent = pt("photos.ghostLabel", { angle: angleLabel(currentAngle), date: last.date });
       } else {
         ghost.hidden = true;
         ghost.removeAttribute("src");
-        label.textContent = "No " + currentAngle + " photo yet — this will be the first one future photos line up against.";
+        label.textContent = pt("photos.noAngleYet", { angle: angleLabel(currentAngle) });
       }
     }).catch(function () { /* gallery refresh will surface DB errors */ });
   }
@@ -128,7 +136,7 @@ window.Photos = (function () {
     return getAll().then(function (all) {
       var box = $("photo-gallery");
       if (!all.length) {
-        box.innerHTML = '<p class="hint">No progress photos yet. Add your first one above.</p>';
+        box.innerHTML = '<p class="hint">' + pt("photos.noneYet") + "</p>";
         return refreshGhost();
       }
       var byDate = {};
@@ -136,26 +144,26 @@ window.Photos = (function () {
       var dates = Object.keys(byDate).sort().reverse();
       box.innerHTML = dates.map(function (date) {
         var thumbs = sortPhotos(byDate[date]).map(function (p) {
-          return '<div class="photo-thumb"><img src="' + objUrl(p.blob) + '" alt="' + p.angle + ' progress photo on ' + date + '">' +
-            '<button type="button" class="thumb-del" data-del-photo="' + p.id + '" aria-label="Delete ' + p.angle + ' photo on ' + date + '">&times;</button>' +
-            '<span class="thumb-label">' + p.angle + "</span></div>";
+          return '<div class="photo-thumb"><img src="' + objUrl(p.blob) + '" alt="' + pt("photos.altText", { angle: angleLabel(p.angle), date: date }) + '">' +
+            '<button type="button" class="thumb-del" data-del-photo="' + p.id + '" aria-label="' + pt("photos.delAria", { angle: angleLabel(p.angle), date: date }) + '">&times;</button>' +
+            '<span class="thumb-label">' + angleLabel(p.angle) + "</span></div>";
         }).join("");
         return '<div class="photo-date-group"><h3>' + date + '</h3><div class="photo-thumbs">' + thumbs + "</div></div>";
       }).join("");
       box.querySelectorAll("[data-del-photo]").forEach(function (btn) {
         btn.addEventListener("click", function () {
-          if (!window.confirm("Delete this photo? Photos are stored only on this device and this cannot be undone.")) return;
+          if (!window.confirm(pt("photos.deleteConfirm"))) return;
           var id = Number(btn.getAttribute("data-del-photo"));
           deletePhoto(id).then(function () {
-            status("Photo deleted.");
+            status(pt("photos.deleted"));
             refreshGallery();
-          }).catch(function () { status("Could not delete that photo.", true); });
+          }).catch(function () { status(pt("photos.deleteFail"), true); });
         });
       });
       return refreshGhost();
     }).catch(function (e) {
-      $("photo-gallery").innerHTML = '<p class="hint">Photo storage is unavailable in this browser (' +
-        (e && e.message ? e.message : "unknown error") + ").</p>";
+      $("photo-gallery").innerHTML = '<p class="hint">' +
+        pt("photos.storageUnavailable", { msg: e && e.message ? e.message : "unknown error" }) + "</p>";
     });
   }
 
@@ -166,7 +174,7 @@ window.Photos = (function () {
     if (!blob) return;
     addPhoto({ date: currentDate(), angle: currentAngle, blob: blob, createdAt: Date.now() })
       .then(function () {
-        status("Saved your " + currentAngle + " photo for " + currentDate() + ".");
+        status(pt("photos.savedNote", { angle: angleLabel(currentAngle), date: currentDate() }));
         pendingBlob = null;
         $("photo-save-file").disabled = true;
         $("photo-preview").hidden = true;
@@ -174,7 +182,7 @@ window.Photos = (function () {
         $("photo-file").value = "";
         refreshGallery();
       })
-      .catch(function () { status("Could not save the photo — browser storage may be full or blocked.", true); });
+      .catch(function () { status(pt("photos.saveFail"), true); });
   }
 
   function stopCamera() {
@@ -190,7 +198,7 @@ window.Photos = (function () {
 
   function startCamera() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      status("This browser cannot open a camera here. Use the file picker instead — on a phone it offers the camera as a source.", true);
+      status(pt("photos.camUnsupported"), true);
       return;
     }
     navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false })
@@ -202,7 +210,7 @@ window.Photos = (function () {
         $("photo-preview").hidden = true;
         var ghost = $("photo-ghost");
         if (ghost && !ghost.hidden) ghost.style.zIndex = "3"; // ghost floats over the live video for framing
-        $("photo-frame-label").textContent = "Camera on. The faint image is your last " + currentAngle + " photo — match your position to it, then Capture.";
+        $("photo-frame-label").textContent = pt("photos.camOn", { angle: angleLabel(currentAngle) });
         return video.play();
       })
       .then(function () {
@@ -212,7 +220,7 @@ window.Photos = (function () {
         status("");
       })
       .catch(function () {
-        status("Could not start the camera (permission denied or no camera). The file picker still works.", true);
+        status(pt("photos.camFail"), true);
         stopCamera();
       });
   }
@@ -233,7 +241,7 @@ window.Photos = (function () {
     if (canvas.toBlob) {
       canvas.toBlob(function (blob) { stopCamera(); saveBlob(blob); }, "image/jpeg", 0.9);
     } else {
-      status("Capturing is not supported in this browser. Use the file picker instead.", true);
+      status(pt("photos.captureUnsupported"), true);
     }
   }
 
@@ -249,7 +257,7 @@ window.Photos = (function () {
     getAll().then(function (all) {
       var mine = sortPhotos(all.filter(function (p) { return p.angle === angle; }));
       if (!mine.length) {
-        $("tl-caption").textContent = "No " + angle + " photos yet — add some above first.";
+        $("tl-caption").textContent = pt("photos.tlNone", { angle: angleLabel(angle) });
         return;
       }
       stopTimeLapse();
@@ -259,7 +267,7 @@ window.Photos = (function () {
       function show() {
         var p = mine[i];
         viewer.src = objUrl(p.blob);
-        $("tl-caption").textContent = angle + " · " + p.date + " · " + (i + 1) + " of " + mine.length;
+        $("tl-caption").textContent = pt("photos.tlCaptionN", { angle: angleLabel(angle), date: p.date, i: i + 1, n: mine.length });
         i = (i + 1) % mine.length;
       }
       show();
@@ -267,7 +275,7 @@ window.Photos = (function () {
       $("tl-play").disabled = true;
       $("tl-stop").disabled = false;
     }).catch(function () {
-      $("tl-caption").textContent = "Photo storage is unavailable in this browser.";
+      $("tl-caption").textContent = pt("photos.tlUnavailable");
     });
   }
 
@@ -298,7 +306,7 @@ window.Photos = (function () {
       prev.src = objUrl(f);
       prev.hidden = false;
       $("photo-save-file").disabled = false;
-      status("Photo ready — press Save photo to store it as your " + currentAngle + " shot for " + currentDate() + ".");
+      status(pt("photos.readyNote", { angle: angleLabel(currentAngle), date: currentDate() }));
     });
 
     $("photo-save-file").addEventListener("click", function () { saveBlob(pendingBlob); });
@@ -310,20 +318,20 @@ window.Photos = (function () {
     $("tl-play").addEventListener("click", playTimeLapse);
     $("tl-stop").addEventListener("click", function () {
       stopTimeLapse();
-      $("tl-caption").textContent = "Time-lapse stopped.";
+      $("tl-caption").textContent = pt("photos.tlStopped");
     });
     $("tl-angle").addEventListener("change", stopTimeLapse);
 
     var eraseBtn = $("photo-erase-all");
     if (eraseBtn) {
       eraseBtn.addEventListener("click", function () {
-        window.askErase("This permanently erases ALL progress photos stored on this device. They are stored only on this device and are not backed up anywhere, and this cannot be undone.", function () {
+        window.askErase(pt("photos.eraseText"), function () {
           clearPhotos().then(function () {
             stopTimeLapse();
             $("tl-viewer").hidden = true;
-            status("All progress photos erased.");
+            status(pt("photos.erasedAll"));
             refreshGallery();
-          }).catch(function () { status("Could not erase photos.", true); });
+          }).catch(function () { status(pt("photos.eraseFail"), true); });
         });
       });
     }
