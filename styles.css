@@ -328,6 +328,12 @@ hr { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
 .copy-label { color: var(--muted); font-size: 0.9rem; }
 #voice-btn.listening { background: var(--danger); border-color: var(--danger); color: #fff; }
 
+/* The hidden attribute must always win: an author display rule on the
+   same element (e.g. .reminder-banner's display:flex) otherwise keeps a
+   'hidden' element on screen — that bug stranded the reminder banner's
+   Dismiss button. */
+[hidden] { display: none !important; }
+
 /* Reminders */
 .reminder-banner {
   display: flex; gap: 10px; align-items: center; justify-content: space-between;
