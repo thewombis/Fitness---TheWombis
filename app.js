@@ -266,7 +266,7 @@ function renderLog() {
       mealKcal += s.kcal;
       rows += '<div class="log-item"><div>' +
         '<span class="log-name">' + esc(it.name) + "</span> " +
-        '<span class="log-meta">' + (it.brand ? esc(it.brand) + " · " : "") + it.grams + " g · P " +
+        '<span class="log-meta">' + (it.brand ? esc(it.brand) + " · " : "") + entryAmountText(it) + " · P " +
         round1(s.protein) + " · C " + round1(s.carbs) + " · F " + round1(s.fat) + "</span></div>" +
         '<div><span class="log-kcal">' + Math.round(s.kcal) + " kcal</span>" +
         '<button type="button" class="log-remove" data-remove="' + it.id + '" aria-label="Remove ' + esc(it.name) + '">&times;</button></div></div>';
@@ -302,6 +302,85 @@ function offMicros(n) {
   return mi;
 }
 
+/* ---------- Servings & display amounts ----------
+   Packaged foods and drinks carry a natural serving (a can, a bottle,
+   355 ml). Grams stay the math unit underneath; the entry also remembers
+   how the user expressed the amount so the log can show "1 can" or
+   "12 fl oz" instead of "355 g". For drinks, 1 ml counts as 1 g — the
+   same convention Open Food Facts uses for beverages. */
+var CONTAINER_WORDS = ["can", "bottle", "box", "bag", "pack", "packet", "pouch", "bar", "piece", "cup", "carton", "jar", "tin", "container", "sachet", "stick", "slice"];
+var DRINK_CONTAINERS = ["can", "bottle", "carton", "jar", "pouch"];
+
+function containerWord(text) {
+  var s = String(text || "").toLowerCase();
+  for (var i = 0; i < CONTAINER_WORDS.length; i++) {
+    if (new RegExp("\\b" + CONTAINER_WORDS[i] + "s?\\b").test(s)) return CONTAINER_WORDS[i];
+  }
+  return null;
+}
+
+function parseAmountUnit(str) {
+  if (!str) return null;
+  var m = String(str).toLowerCase().match(/([\d]+(?:[.,]\d+)?)\s*(ml|cl|l|kg|g|fl oz|oz)\b/);
+  if (!m) return null;
+  var v = parseFloat(m[1].replace(",", "."));
+  if (!(v > 0)) return null;
+  switch (m[2]) {
+    case "ml": return { amount: Math.round(v), unit: "ml" };
+    case "cl": return { amount: Math.round(v * 10), unit: "ml" };
+    case "l": return { amount: Math.round(v * 1000), unit: "ml" };
+    case "fl oz": return { amount: Math.round(v * ML_PER_OZ), unit: "ml" };
+    case "g": return { amount: Math.round(v), unit: "g" };
+    case "kg": return { amount: Math.round(v * 1000), unit: "g" };
+    case "oz": return { amount: Math.round(v * 28.3495), unit: "g" };
+  }
+  return null;
+}
+
+function offServing(p) {
+  var label = containerWord([p.serving_size || "", p.packaging || "", p.quantity || ""].join(" "));
+  var s = parseAmountUnit(p.serving_size);
+  if (!s && Number(p.serving_quantity) > 0) {
+    s = { amount: Math.round(Number(p.serving_quantity)), unit: label && DRINK_CONTAINERS.indexOf(label) >= 0 ? "ml" : "g" };
+  }
+  if (!s) {
+    var q = String(p.quantity || "");
+    var multi = q.match(/\d+\s*[x×]\s*(.+)$/);
+    s = parseAmountUnit(multi ? multi[1] : q);
+  }
+  if (!s && Number(p.product_quantity) > 0) {
+    s = { amount: Math.round(Number(p.product_quantity)), unit: p.product_quantity_unit === "ml" ? "ml" : "g" };
+  }
+  if (!s || !(s.amount > 0)) return null;
+  return { amount: s.amount, unit: s.unit, label: label };
+}
+
+function usdaServing(f) {
+  var v = Number(f.servingSize);
+  if (!(v > 0)) return null;
+  var u = String(f.servingSizeUnit || "").toLowerCase();
+  var unit = u.indexOf("ml") >= 0 ? "ml" : (u === "g" || u.indexOf("gram") >= 0 ? "g" : null);
+  if (!unit) return null;
+  return { amount: Math.round(v), unit: unit, label: containerWord(f.householdServingFullText || "") };
+}
+
+function volumeText(ml) {
+  return waterImperial() ? round1(ml / ML_PER_OZ) + " fl oz" : Math.round(ml) + " ml";
+}
+
+function entryAmountText(it) {
+  if (it.dispUnit === "serving" && it.servingAmount) {
+    var base = it.servingUnit === "ml" ? volumeText(it.servingAmount) : it.servingAmount + " g";
+    var lab = it.servingLabel || "serving";
+    var word = it.dispQty === 1 ? lab : lab + (/(s|x|ch|sh)$/.test(lab) ? "es" : "s");
+    return round1(it.dispQty) + " " + word + " · " + base;
+  }
+  if (it.dispUnit === "oz") return round1(it.dispQty) + " fl oz";
+  if (it.dispUnit === "ml") return Math.round(it.dispQty) + " ml";
+  if (it.dispUnit === "g") return Math.round(it.dispQty) + " g";
+  return it.grams + " g";
+}
+
 function offNutrients(n) {
   if (!n) return null;
   var kcal = n["energy-kcal_100g"];
@@ -318,13 +397,13 @@ function offNutrients(n) {
 
 function searchOFF(query) {
   var url = "https://world.openfoodfacts.org/cgi/search.pl?action=process&json=1&page_size=12" +
-    "&fields=code,product_name,brands,nutriments&search_terms=" + encodeURIComponent(query);
+    "&fields=code,product_name,brands,nutriments,serving_size,serving_quantity,quantity,packaging,product_quantity,product_quantity_unit&search_terms=" + encodeURIComponent(query);
   return fetch(url).then(function (r) { return r.json(); }).then(function (data) {
     var out = [];
     (data.products || []).forEach(function (p) {
       var per100 = offNutrients(p.nutriments);
       if (!per100 || !p.product_name) return;
-      out.push({ name: p.product_name, brand: p.brands || "", source: "Open Food Facts", per100: per100 });
+      out.push({ name: p.product_name, brand: p.brands || "", source: "Open Food Facts", per100: per100, serving: offServing(p) });
     });
     return out;
   });
@@ -363,43 +442,88 @@ function searchUSDA(query) {
         }
       });
       if (per100.kcal == null || !f.description) return;
-      out.push({ name: f.description, brand: f.brandName || "USDA generic", source: "USDA", per100: per100 });
+      out.push({ name: f.description, brand: f.brandName || "USDA generic", source: "USDA", per100: per100, serving: usdaServing(f) });
     });
     return out;
   });
+}
+
+function servingDisplay(sv) {
+  var amt = sv.unit === "ml" ? volumeText(sv.amount) : sv.amount + " g";
+  return sv.label ? "1 " + sv.label + " · " + amt : amt;
 }
 
 function renderResults(results) {
   var ul = $("search-results");
   if (!results.length) { ul.innerHTML = ""; return; }
   ul.innerHTML = results.map(function (r, idx) {
+    var meta = (r.brand ? esc(r.brand) + " · " : "") +
+      Math.round(r.per100.kcal) + " kcal · P " + round1(r.per100.protein) + " · C " + round1(r.per100.carbs) +
+      " · F " + round1(r.per100.fat) + " per 100 g";
+    if (r.serving) meta += " · Serving: " + esc(servingDisplay(r.serving));
+    var control;
+    if (r.serving) {
+      var amtTxt = r.serving.unit === "ml" ? volumeText(r.serving.amount) : r.serving.amount + " g";
+      var opts = '<option value="serving">' + esc(r.serving.label || "serving") + " · " + esc(amtTxt) + "</option>";
+      if (r.serving.unit === "ml") opts += '<option value="volume">' + (waterImperial() ? "fl oz" : "ml") + "</option>";
+      opts += '<option value="g">grams</option>';
+      control = '<input type="number" class="result-qty" id="qty-' + idx + '" value="1" min="0" step="0.5" aria-label="Quantity"> ' +
+        '<select class="result-unit" id="unit-' + idx + '" aria-label="Amount unit">' + opts + "</select>";
+    } else {
+      control = '<input type="number" class="result-grams" id="grams-' + idx + '" value="100" min="1" step="1" aria-label="Grams"> g';
+    }
     return '<li class="result"><div class="result-main">' +
       '<span class="result-name">' + esc(r.name) + "</span> " +
       '<span class="source-tag">' + esc(r.source) + "</span>" +
-      '<div class="result-meta">' + (r.brand ? esc(r.brand) + " · " : "") +
-      Math.round(r.per100.kcal) + " kcal · P " + round1(r.per100.protein) + " · C " + round1(r.per100.carbs) +
-      " · F " + round1(r.per100.fat) + " per 100 g</div></div>" +
-      '<input type="number" class="result-grams" id="grams-' + idx + '" value="100" min="1" step="1" aria-label="Grams"> g' +
+      '<div class="result-meta">' + meta + "</div></div>" +
+      control +
       '<button type="button" class="btn btn-primary btn-small" data-add="' + idx + '"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Add</span></button></li>';
   }).join("");
   ul.querySelectorAll("[data-add]").forEach(function (btn) {
     btn.addEventListener("click", function () {
       var idx = Number(btn.getAttribute("data-add"));
-      var grams = Number($("grams-" + idx).value) || 100;
-      addEntry(results[idx], grams);
+      var food = results[idx];
+      var grams, disp = null;
+      if (food.serving) {
+        var q = Number($("qty-" + idx).value);
+        if (!(q > 0)) q = 1;
+        var mode = $("unit-" + idx).value;
+        if (mode === "serving") {
+          grams = q * food.serving.amount;
+          disp = { qty: q, unit: "serving" };
+        } else if (mode === "volume") {
+          grams = waterImperial() ? q * ML_PER_OZ : q;
+          disp = { qty: q, unit: waterImperial() ? "oz" : "ml" };
+        } else {
+          grams = q;
+          disp = { qty: q, unit: "g" };
+        }
+      } else {
+        grams = Number($("grams-" + idx).value) || 100;
+      }
+      addEntry(food, grams, disp);
     });
   });
 }
 
-function addEntry(food, grams) {
+function addEntry(food, grams, disp) {
   var entry = {
     id: Date.now() + "-" + Math.floor(Math.random() * 100000),
     name: food.name,
     brand: food.brand || "",
     meal: $("meal-select").value,
-    grams: Math.max(1, grams),
+    grams: Math.max(1, Math.round(grams)),
     per100: food.per100
   };
+  if (disp) {
+    entry.dispQty = disp.qty;
+    entry.dispUnit = disp.unit;
+    if (disp.unit === "serving" && food.serving) {
+      entry.servingLabel = food.serving.label || null;
+      entry.servingAmount = food.serving.amount;
+      entry.servingUnit = food.serving.unit;
+    }
+  }
   if (!state.entries[selectedDate]) state.entries[selectedDate] = [];
   state.entries[selectedDate].push(entry);
   saveState(); renderAll();
@@ -425,8 +549,8 @@ function lookupBarcode(code) {
         status.className = "status error";
         return;
       }
-      renderResults([{ name: data.product.product_name || ("Barcode " + code), brand: data.product.brands || "", source: "Open Food Facts", per100: per100 }]);
-      status.textContent = "Found it. Set grams in the result above, then Add.";
+      renderResults([{ name: data.product.product_name || ("Barcode " + code), brand: data.product.brands || "", source: "Open Food Facts", per100: per100, serving: offServing(data.product) }]);
+      status.textContent = "Found it. Set the amount in the result above, then Add.";
     })
     .catch(function () {
       status.textContent = "Barcode lookup failed (network or service error). Please try again.";
@@ -1131,7 +1255,7 @@ function init() {
         status.textContent = "No matches found in either database. Try a different spelling, or use the barcode lookup below.";
         status.className = "status error";
       } else {
-        status.textContent = results.length + " result" + (results.length === 1 ? "" : "s") + ". Set grams, then Add.";
+        status.textContent = results.length + " result" + (results.length === 1 ? "" : "s") + ". Set the amount, then Add.";
       }
       renderResults(results);
     });
