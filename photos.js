@@ -12,6 +12,8 @@ window.Photos = (function () {
   var currentAngle = "front";
   var pendingBlob = null;
   var stream = null;
+  var facingMode = "user";
+  var countdownId = null;
   var tlTimer = null;
   var liveUrls = [];
 
@@ -185,7 +187,14 @@ window.Photos = (function () {
       .catch(function () { status(pt("photos.saveFail"), true); });
   }
 
+  function cancelCountdown() {
+    if (countdownId) { clearInterval(countdownId); countdownId = null; }
+    var cd = $("photo-countdown");
+    if (cd) { cd.hidden = true; cd.textContent = ""; }
+  }
+
   function stopCamera() {
+    cancelCountdown();
     if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
     var video = $("photo-video");
     if (video) { video.hidden = true; video.srcObject = null; }
@@ -193,6 +202,7 @@ window.Photos = (function () {
     if (ghost) ghost.style.zIndex = "";
     if ($("photo-cam-start")) $("photo-cam-start").disabled = false;
     if ($("photo-cam-capture")) $("photo-cam-capture").disabled = true;
+    if ($("photo-cam-flip")) $("photo-cam-flip").disabled = true;
     if ($("photo-cam-stop")) $("photo-cam-stop").disabled = true;
   }
 
@@ -201,7 +211,7 @@ window.Photos = (function () {
       status(pt("photos.camUnsupported"), true);
       return;
     }
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false })
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: facingMode }, audio: false })
       .then(function (s) {
         stream = s;
         var video = $("photo-video");
@@ -216,6 +226,7 @@ window.Photos = (function () {
       .then(function () {
         $("photo-cam-start").disabled = true;
         $("photo-cam-capture").disabled = false;
+        $("photo-cam-flip").disabled = false;
         $("photo-cam-stop").disabled = false;
         status("");
       })
@@ -225,7 +236,38 @@ window.Photos = (function () {
       });
   }
 
+  function flipCamera() {
+    facingMode = facingMode === "user" ? "environment" : "user";
+    if (stream) { stopCamera(); startCamera(); }
+  }
+
+  /* Capture button: with a timer set, count down on the frame first so the
+     user can set the phone down and get into position, then capture. */
   function capturePhoto() {
+    if (!stream || countdownId) return;
+    var secs = 0;
+    var sel = $("photo-timer");
+    if (sel) secs = parseInt(sel.value, 10) || 0;
+    if (!secs) { doCapture(); return; }
+    var cd = $("photo-countdown");
+    var left = secs;
+    $("photo-cam-capture").disabled = true;
+    if ($("photo-cam-flip")) $("photo-cam-flip").disabled = true;
+    if (cd) { cd.hidden = false; cd.textContent = String(left); }
+    countdownId = setInterval(function () {
+      left -= 1;
+      if (left <= 0) {
+        cancelCountdown();
+        if ($("photo-cam-capture")) $("photo-cam-capture").disabled = false;
+        if ($("photo-cam-flip")) $("photo-cam-flip").disabled = false;
+        doCapture();
+      } else if (cd) {
+        cd.textContent = String(left);
+      }
+    }, 1000);
+  }
+
+  function doCapture() {
     var video = $("photo-video");
     if (!stream || !video.videoWidth) return;
     // Center-crop to the frame's 3:4 aspect so captures line up with uploads.
@@ -312,6 +354,7 @@ window.Photos = (function () {
     $("photo-save-file").addEventListener("click", function () { saveBlob(pendingBlob); });
     $("photo-cam-start").addEventListener("click", startCamera);
     $("photo-cam-capture").addEventListener("click", capturePhoto);
+    $("photo-cam-flip").addEventListener("click", flipCamera);
     $("photo-cam-stop").addEventListener("click", stopCamera);
     $("photo-date").addEventListener("change", function () { /* date only affects the next save */ });
 

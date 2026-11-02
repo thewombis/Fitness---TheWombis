@@ -1102,6 +1102,7 @@ function lookupBarcode(code) {
 var scanStream = null;
 var scanTimer = null;
 var zxingScanner = null;
+var scanFacing = "environment";
 
 function stopScan() {
   if (scanTimer) { clearInterval(scanTimer); scanTimer = null; }
@@ -1122,6 +1123,31 @@ function stopScan() {
   if (box) box.hidden = true;
 }
 
+/* Flip between the rear and front camera while scanning is live. */
+function flipScanCamera() {
+  scanFacing = scanFacing === "environment" ? "user" : "environment";
+  if (scanStream) {
+    stopScan();
+    startNativeScan();
+    return;
+  }
+  if (zxingScanner) {
+    var status = $("barcode-status");
+    var zs = zxingScanner;
+    zxingScanner = null;
+    if (scanTimer) { clearInterval(scanTimer); scanTimer = null; }
+    var holder = $("scan-zxing");
+    if (holder) holder.innerHTML = "";
+    var p = null;
+    try { p = zs.stop(); } catch (e) { /* already stopped */ }
+    if (p && p.then) {
+      p.then(function () { startZxingScan(status); }, function () { startZxingScan(status); });
+    } else {
+      startZxingScan(status);
+    }
+  }
+}
+
 function startScan() {
   var status = $("barcode-status");
   var hasMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
@@ -1136,7 +1162,7 @@ function startNativeScan() {
   var detector;
   try { detector = new window.BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128"] }); }
   catch (e) { detector = new window.BarcodeDetector(); }
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: scanFacing } })
     .then(function (stream) {
       scanStream = stream;
       $("scan-box").hidden = false;
@@ -1194,7 +1220,7 @@ function startZxingScan(status) {
     return;
   }
   zxingScanner.start(
-    { facingMode: "environment" },
+    { facingMode: scanFacing },
     { fps: 10 },
     function (decodedText) {
       var raw = String(decodedText || "").replace(/\D/g, "");
@@ -1976,6 +2002,7 @@ function init() {
   });
   $("scan-btn").addEventListener("click", startScan);
   $("scan-stop").addEventListener("click", stopScan);
+  $("scan-flip").addEventListener("click", flipScanCamera);
 
   // Weight
   $("weight-form").addEventListener("submit", function (e) {

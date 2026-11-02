@@ -152,6 +152,7 @@
         <div id="scan-zxing" hidden></div>
         <div class="row">
           <span id="scan-status" class="status" data-i18n="log.scanPoint">Point the camera at a barcode.</span>
+          <button type="button" id="scan-flip" class="btn btn-small" data-i18n="log.flipCamera">Flip camera</button>
           <button type="button" id="scan-stop" class="btn btn-small" data-i18n="log.stopCamera">Stop camera</button>
         </div>
       </div>
@@ -377,6 +378,7 @@
         <video id="photo-video" playsinline muted hidden></video>
         <img id="photo-preview" alt="Selected photo preview" data-i18n-alt="photos.previewAlt" hidden>
         <div class="photo-outline" aria-hidden="true"></div>
+        <div id="photo-countdown" class="photo-countdown" hidden></div>
         <span class="photo-frame-label" id="photo-frame-label" data-i18n="photos.frameIdle">No camera active — choose a photo or start the camera.</span>
       </div>
 
@@ -387,7 +389,16 @@
       <div class="row">
         <button type="button" id="photo-cam-start" class="btn" data-i18n="photos.camStart">Start camera</button>
         <button type="button" id="photo-cam-capture" class="btn btn-primary" data-i18n="photos.capture" disabled>Capture</button>
+        <button type="button" id="photo-cam-flip" class="btn" data-i18n="photos.flipCamera" disabled>Flip camera</button>
         <button type="button" id="photo-cam-stop" class="btn" data-i18n="photos.camStop" disabled>Stop camera</button>
+        <label class="inline-label"><span data-i18n="photos.timer">Timer</span>
+          <select id="photo-timer">
+            <option value="0" data-i18n="photos.timerOff">Off</option>
+            <option value="3">3s</option>
+            <option value="5">5s</option>
+            <option value="10">10s</option>
+          </select>
+        </label>
       </div>
       <div id="photo-status" class="status" role="status"></div>
     </div>

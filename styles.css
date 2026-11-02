@@ -438,6 +438,14 @@ label.check input { width: auto; }
   background: rgba(10, 14, 18, 0.72);
   color: #eef3f6; font-size: 0.82rem;
 }
+.photo-countdown {
+  position: absolute; inset: 0; z-index: 6;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 6rem; font-weight: 700; color: #fff;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.65);
+  pointer-events: none;
+}
+.photo-countdown[hidden] { display: none; }
 .photo-gallery { display: grid; gap: 16px; }
 .photo-date-group h3 { margin: 0 0 8px; font-size: 1rem; }
 .photo-thumbs { display: flex; gap: 10px; flex-wrap: wrap; }
