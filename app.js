@@ -158,7 +158,8 @@ var RECENT_KEY = "cc-recents-v1";
 var RECIPE_KEY = "cc-recipes-v1";
 var FAST_KEY = "cc-fasting-v1";
 var REMINDER_KEY = "cc-reminders-v1";
-var EXTRA_KEYS = [FAV_KEY, RECENT_KEY, RECIPE_KEY, FAST_KEY, REMINDER_KEY];
+var WHATSNEW_KEY = "cc-whatsnew-v1";
+var EXTRA_KEYS = [FAV_KEY, RECENT_KEY, RECIPE_KEY, FAST_KEY, REMINDER_KEY, WHATSNEW_KEY];
 
 function loadJSON(key, fallback) {
   try {
@@ -183,10 +184,11 @@ if (!fastingStore || typeof fastingStore !== "object" || !Array.isArray(fastingS
   fastingStore = { current: null, history: [] };
 }
 var reminderCfg = Object.assign(
-  { enabled: false, lunch: "12:30", dinner: "18:30", lastFired: {} },
+  { enabled: false, lunch: "12:30", dinner: "18:30", lastFired: {}, dismissed: {} },
   loadJSON(REMINDER_KEY, {})
 );
 if (!reminderCfg.lastFired || typeof reminderCfg.lastFired !== "object") reminderCfg.lastFired = {};
+if (!reminderCfg.dismissed || typeof reminderCfg.dismissed !== "object") reminderCfg.dismissed = {};
 
 /* A "snapshot" is everything needed to re-log a food in one tap: its
    per-100 g nutrition, its serving (if any), and the amount last chosen. */
@@ -1542,6 +1544,7 @@ function cancelFast() {
    dismissible in-app banner. Nothing here can guarantee a notification
    while the app is fully closed. */
 var reminderBannerMsgs = [];
+var reminderBannerMeals = [];
 
 function saveReminders() { saveJSON(REMINDER_KEY, reminderCfg); }
 
@@ -1580,7 +1583,11 @@ function fireReminder(meal) {
       try { new Notification(t("app.title"), { body: msg }); } catch (e) { /* banner below still shows */ }
     }
   }
-  if (reminderBannerMsgs.indexOf(msg) < 0) reminderBannerMsgs.push(msg);
+  var dismissedToday = reminderCfg.dismissed[todayStr()] || [];
+  if (dismissedToday.indexOf(meal) < 0 && reminderBannerMsgs.indexOf(msg) < 0) {
+    reminderBannerMsgs.push(msg);
+    reminderBannerMeals.push(meal);
+  }
   showReminderBanner();
 }
 
@@ -1597,6 +1604,43 @@ function checkReminders() {
     var logged = entriesFor(today).some(function (e) { return e.meal === meal; });
     if (!logged) fireReminder(meal);
   });
+}
+
+/* ---------- What's New splash ----------
+   On the first visit after an update, show a small splash listing what
+   changed since the release this device last saw. The seen release is
+   stored on-device only; a first-ever visit just records the current
+   release (the setup walkthrough covers the intro). */
+var APP_RELEASE = 12;
+var RELEASE_NOTES = [
+  { v: 11, keys: ["wn.v11a", "wn.v11b", "wn.v11c"] },
+  { v: 12, keys: ["wn.v12a"] }
+];
+
+function whatsNewSeen() {
+  var n = 0;
+  try { n = Number(localStorage.getItem(WHATSNEW_KEY) || 0); } catch (e) { /* storage blocked */ }
+  return isNaN(n) ? 0 : n;
+}
+
+function markWhatsNewSeen() {
+  try { localStorage.setItem(WHATSNEW_KEY, String(APP_RELEASE)); } catch (e) { /* storage blocked */ }
+}
+
+function maybeShowWhatsNew() {
+  var modal = $("whatsnew-modal");
+  var body = $("whatsnew-body");
+  if (!modal || !body) return;
+  var seen = whatsNewSeen();
+  if (!seen) { markWhatsNewSeen(); return; }
+  if (seen >= APP_RELEASE) return;
+  var keys = [];
+  RELEASE_NOTES.forEach(function (r) {
+    if (r.v > seen) r.keys.forEach(function (k) { keys.push(k); });
+  });
+  if (!keys.length) { markWhatsNewSeen(); return; }
+  body.innerHTML = keys.map(function (k) { return '<p class="wn-item">' + esc(t(k)) + "</p>"; }).join("");
+  modal.hidden = false;
 }
 
 /* ---------- Meal planner ---------- */
@@ -2135,8 +2179,25 @@ function init() {
   checkReminders();
   setInterval(checkReminders, 60000);
   $("reminder-banner-dismiss").addEventListener("click", function () {
+    // Dismissal sticks for the rest of the day and survives a reload:
+    // remember which meals were dismissed today in the saved config.
+    var today = todayStr();
+    var list = (reminderCfg.dismissed[today] || []).slice();
+    reminderBannerMeals.forEach(function (m) { if (list.indexOf(m) < 0) list.push(m); });
+    var kept = {};
+    kept[today] = list;
+    reminderCfg.dismissed = kept;
+    saveReminders();
     reminderBannerMsgs = [];
+    reminderBannerMeals = [];
     showReminderBanner();
+  });
+
+  // What's New splash
+  maybeShowWhatsNew();
+  $("whatsnew-close").addEventListener("click", function () {
+    $("whatsnew-modal").hidden = true;
+    markWhatsNewSeen();
   });
   $("rem-save").addEventListener("click", function () {
     reminderCfg.enabled = $("rem-enabled").checked;
@@ -2223,7 +2284,7 @@ function init() {
       recents = [];
       myRecipes = [];
       fastingStore = { current: null, history: [] };
-      reminderCfg = { enabled: false, lunch: "12:30", dinner: "18:30", lastFired: {} };
+      reminderCfg = { enabled: false, lunch: "12:30", dinner: "18:30", lastFired: {}, dismissed: {} };
       if (typeof renderRecipeBuilder === "function") renderRecipeBuilder();
       if (typeof renderFasting === "function") renderFasting();
       if (typeof renderReminderSettings === "function") renderReminderSettings();

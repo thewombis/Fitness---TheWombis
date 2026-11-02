@@ -467,6 +467,7 @@ label.check input { width: auto; }
 .modal h3 { margin-top: 0; }
 .modal input { width: 100%; margin: 4px 0 14px; }
 .modal-actions { justify-content: flex-end; }
+.wn-item { margin: 8px 0; }
 
 /* First-run setup wizard + settings actions */
 .setup-modal { max-width: 460px; }
