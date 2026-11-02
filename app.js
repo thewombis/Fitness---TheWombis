@@ -67,7 +67,7 @@ function num(v) { var n = Number(v); return isFinite(n) ? n : 0; }
 function defaultState() {
   return {
     settings: {
-      target: 2000, unit: "lb",
+      target: 2000, unit: "lb", language: "en",
       targetWeightKg: null, currentWeightKg: null,
       waterGoalMl: 2000, theme: "meadow"
     },
@@ -718,16 +718,46 @@ function renderWeight() {
 }
 
 /* ---------- Water ---------- */
+function waterImperial() { return state.settings.unit !== "kg"; }
+
+var WATER_QUICK = {
+  imperial: [[237, "+ 8 oz"], [355, "+ 12 oz"], [473, "+ 16 oz"]],
+  metric: [[250, "+ 250 ml"], [350, "+ 350 ml"], [500, "+ 500 ml"]]
+};
+var waterQuickKey = "";
+
 function renderWater() {
   var ml = num(state.water[waterDate]);
   var goal = state.settings.waterGoalMl || 2000;
+  var imp = waterImperial();
   $("water-picker").value = waterDate;
-  $("water-amount").textContent = Math.round(ml) + " ml";
-  $("water-sub").textContent = round1(ml / ML_PER_OZ) + " fl oz · goal " + goal + " ml · " + prettyDate(waterDate);
+  if (imp) {
+    $("water-amount").textContent = round1(ml / ML_PER_OZ) + " fl oz";
+    $("water-sub").textContent = Math.round(ml) + " ml · goal " + round1(goal / ML_PER_OZ) + " fl oz · " + prettyDate(waterDate);
+  } else {
+    $("water-amount").textContent = Math.round(ml) + " ml";
+    $("water-sub").textContent = round1(ml / ML_PER_OZ) + " fl oz · goal " + goal + " ml · " + prettyDate(waterDate);
+  }
   var pctv = Math.max(0, Math.min(100, (ml / goal) * 100));
   $("water-bar").style.width = pctv.toFixed(1) + "%";
   $("water-pct").textContent = Math.round(pctv) + "% of daily goal";
-  $("water-goal").value = goal;
+  var key = imp ? "imperial" : "metric";
+  if (key !== waterQuickKey) {
+    waterQuickKey = key;
+    $("water-quick").innerHTML = WATER_QUICK[key].map(function (q) {
+      return '<button type="button" class="btn" data-water-add="' + q[0] + '">' + q[1] + "</button>";
+    }).join("");
+    $("water-custom-unit").value = imp ? "oz" : "ml";
+  }
+  var goalInput = $("water-goal");
+  if (imp) {
+    goalInput.min = "16"; goalInput.max = "340"; goalInput.step = "1";
+    goalInput.value = Math.round(goal / ML_PER_OZ);
+  } else {
+    goalInput.min = "100"; goalInput.max = "10000"; goalInput.step = "50";
+    goalInput.value = goal;
+  }
+  $("water-goal-unit").textContent = imp ? "fl oz" : "ml";
 }
 
 function addWater(ml) {
@@ -866,9 +896,14 @@ function applyTheme() {
   $("theme-select").value = theme;
 }
 
+function applyLanguage() {
+  document.documentElement.lang = state.settings.language || "en";
+}
+
 function renderSettings() {
   $("set-target").value = state.settings.target;
   $("set-unit").value = state.settings.unit;
+  $("set-language").value = state.settings.language || "en";
   $("set-target-weight").value = state.settings.targetWeightKg != null ? round1(toDisplayWeight(state.settings.targetWeightKg)) : "";
   $("set-current-weight").value = state.settings.currentWeightKg != null ? round1(toDisplayWeight(state.settings.currentWeightKg)) : "";
   document.querySelectorAll(".set-unit-name").forEach(function (el) { el.textContent = unitLabel(); });
@@ -888,6 +923,7 @@ function init() {
   $("day-picker").value = selectedDate;
   $("weight-date").value = todayStr();
   applyTheme();
+  applyLanguage();
   renderSettings();
   renderAll();
 
@@ -986,8 +1022,9 @@ function init() {
   $("water-prev").addEventListener("click", function () { waterDate = shiftDate(waterDate, -1); renderWater(); });
   $("water-next").addEventListener("click", function () { waterDate = shiftDate(waterDate, 1); renderWater(); });
   $("water-today").addEventListener("click", function () { waterDate = todayStr(); renderWater(); });
-  document.querySelectorAll("[data-water-add]").forEach(function (btn) {
-    btn.addEventListener("click", function () { addWater(Number(btn.getAttribute("data-water-add"))); });
+  $("water-quick").addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-water-add]");
+    if (btn) addWater(Number(btn.getAttribute("data-water-add")));
   });
   $("water-custom-form").addEventListener("submit", function (e) {
     e.preventDefault();
@@ -1004,10 +1041,13 @@ function init() {
   $("water-goal-form").addEventListener("submit", function (e) {
     e.preventDefault();
     var g = Number($("water-goal").value);
-    if (g >= 100 && g <= 10000) {
-      state.settings.waterGoalMl = Math.round(g);
+    var gMl = waterImperial() ? Math.round(g * ML_PER_OZ) : Math.round(g);
+    if (gMl >= 250 && gMl <= 10000) {
+      state.settings.waterGoalMl = gMl;
       saveState(); renderWater();
-      $("water-status").textContent = "Daily water goal saved: " + state.settings.waterGoalMl + " ml.";
+      $("water-status").textContent = waterImperial()
+        ? "Daily water goal saved: " + round1(gMl / ML_PER_OZ) + " fl oz."
+        : "Daily water goal saved: " + gMl + " ml.";
     }
   });
 
@@ -1029,6 +1069,8 @@ function init() {
     var target = Number($("set-target").value);
     if (target >= 500 && target <= 10000) state.settings.target = Math.round(target);
     state.settings.unit = $("set-unit").value === "kg" ? "kg" : "lb";
+    state.settings.language = $("set-language").value || "en";
+    applyLanguage();
     var tw = $("set-target-weight").value;
     state.settings.targetWeightKg = tw === "" ? null : fromDisplayWeight(Number(tw));
     var cw = $("set-current-weight").value;

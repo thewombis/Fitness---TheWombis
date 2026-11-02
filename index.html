@@ -214,11 +214,10 @@
       </div>
       <div class="bar water-bar"><div class="bar-fill water" id="water-bar"></div></div>
       <p class="water-pct" id="water-pct">0% of daily goal</p>
-      <div class="row">
-        <button type="button" class="btn" data-water-add="250">+ 250 ml</button>
-        <button type="button" class="btn" data-water-add="500">+ 500 ml</button>
-        <button type="button" class="btn" data-water-add="237">+ 8 fl oz</button>
-        <button type="button" class="btn" data-water-add="473">+ 16 fl oz</button>
+      <div class="row" id="water-quick">
+        <button type="button" class="btn" data-water-add="237">+ 8 oz</button>
+        <button type="button" class="btn" data-water-add="355">+ 12 oz</button>
+        <button type="button" class="btn" data-water-add="473">+ 16 oz</button>
       </div>
       <form id="water-custom-form" class="row">
         <input type="number" id="water-custom" min="1" step="1" placeholder="Custom amount" aria-label="Custom water amount">
@@ -231,8 +230,8 @@
       </form>
       <hr>
       <form id="water-goal-form" class="row">
-        <label class="inline-label">Daily goal (ml)
-          <input type="number" id="water-goal" min="100" max="10000" step="50">
+        <label class="inline-label">Daily goal · <span id="water-goal-unit">fl oz</span>
+          <input type="number" id="water-goal" min="1" step="1">
         </label>
         <button type="submit" class="btn">Save goal</button>
       </form>
@@ -356,19 +355,31 @@
     <div class="card">
       <h2>Settings</h2>
       <form id="settings-form" class="settings-grid">
-        <label>Daily calorie target (kcal)
+        <label>Daily calorie target <span class="unit-note">kcal</span>
           <input type="number" id="set-target" min="500" max="10000" step="10" required>
         </label>
         <label>Units
           <select id="set-unit">
-            <option value="lb">Pounds (lb)</option>
-            <option value="kg">Kilograms (kg)</option>
+            <option value="lb">Imperial — lb, fl oz</option>
+            <option value="kg">Metric — kg, ml</option>
           </select>
         </label>
-        <label>Current weight (<span class="set-unit-name">lb</span>)
+        <label>Language
+          <select id="set-language">
+            <option value="en">English</option>
+            <option value="es">Español</option>
+            <option value="fr">Français</option>
+            <option value="de">Deutsch</option>
+            <option value="pt">Português</option>
+            <option value="it">Italiano</option>
+            <option value="zh">简体中文</option>
+            <option value="ja">日本語</option>
+          </select>
+        </label>
+        <label>Current weight <span class="set-unit-name unit-note">lb</span>
           <input type="number" id="set-current-weight" step="0.1" min="0" placeholder="Optional">
         </label>
-        <label>Target weight (<span class="set-unit-name">lb</span>)
+        <label>Target weight <span class="set-unit-name unit-note">lb</span>
           <input type="number" id="set-target-weight" step="0.1" min="0" placeholder="Optional">
         </label>
         <button type="submit" class="btn btn-primary">Save settings</button>

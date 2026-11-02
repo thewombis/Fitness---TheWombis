@@ -422,6 +422,7 @@ hr { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
 .settings-grid { display: grid; gap: 12px; max-width: 430px; }
 .settings-grid label { display: grid; gap: 5px; font-size: 0.94rem; color: var(--muted); }
 .settings-grid input, .settings-grid select { color: var(--ink); }
+.unit-note { color: var(--muted); font-weight: 400; font-size: 0.85em; }
 #clear-data { margin-top: 6px; }
 
 .site-footer { padding: 10px 0 30px; color: var(--muted); font-size: 0.9rem; }
