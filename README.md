@@ -18,11 +18,12 @@ A full-featured calorie and nutrition tracker that runs entirely in the browser,
 - **Voice logging** — a Speak button (Web Speech API, where the browser supports it) dictates a food into the search box and runs the normal database search; a leading quantity ("two eggs") prefills the first result's amount.
 - **Languages** — the full UI is translated for all 8 Settings languages (English, Español, Français, Deutsch, Português, Italiano, 简体中文， 日本語）, including onboarding and dialogs; food names stay as the databases publish them.
 - **Fasting timer** — intermittent-fasting tracker on the Water tab with 12–20 h target presets, a live elapsed clock with progress, and a history of completed fasts. It runs from a stored start timestamp, so it survives closing the app.
+- **Sleep tracking** — one entry per night on the Water tab (hours + minutes, optional 1–5 quality), keyed by the morning you woke up, with an adjustable nightly target (8 h by default). Home shows last night's sleep, and Trends charts sleep history over 14, 30, or 90 days with your average and a dashed target line.
 - **Meal reminders** — opt-in lunch/dinner nudges (Settings): if a meal's time passes with nothing logged, you get a notification where supported plus an in-app banner. Reminders are checked while the app is open or in the background; a web app cannot guarantee notifications while fully closed.
 
 ## Data & privacy
 
-All data stays on the visitor's own device: food logs, weigh-ins, water, plans, and settings in `localStorage`; progress photos in IndexedDB. There are **no user accounts and no cloud sync in this version**, and nothing is uploaded to a server. AI plate-photo recognition is also not part of this version. Clearing browser data erases the stored data; the app itself provides erase controls in Settings and in the Photo Diary.
+All data stays on the visitor's own device: food logs, weigh-ins, water, sleep, plans, and settings in `localStorage`; progress photos in IndexedDB. There are **no user accounts and no cloud sync in this version**, and nothing is uploaded to a server. AI plate-photo recognition is also not part of this version. Clearing browser data erases the stored data; the app itself provides erase controls in Settings and in the Photo Diary.
 
 Nutrition values come from the [Open Food Facts](https://world.openfoodfacts.org) and [USDA FoodData Central](https://fdc.nal.usda.gov) public APIs (USDA uses the shared `DEMO_KEY`, which is rate-limited — if USDA results fail, Open Food Facts results still load). Values are as published by those sources. Micronutrient totals are a floor, not an exact total: foods that don't publish a nutrient contribute 0 for it.
 
@@ -36,6 +37,7 @@ Nutrition values come from the [Open Food Facts](https://world.openfoodfacts.org
 | `i18n.js` | UI translation dictionary (8 languages) and lookup helper |
 | `recipes.js` | Recipe math (totals, per-serving, log entries) — pure functions, unit-tested |
 | `fasting.js` | Fasting timer math (elapsed, progress, completion) — pure functions, unit-tested |
+| `sleep.js` | Sleep math (duration entry, averages, formatting) — pure functions, unit-tested |
 | `workouts.js` | Exercise library and the animated form-demo player |
 | `photos.js` | Photo diary: IndexedDB storage, camera capture, ghost overlay, time-lapse |
 | `tests/` | Node unit/smoke tests (no dependencies): `node tests/<name>.test.js` |

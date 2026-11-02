@@ -141,6 +141,8 @@ function loadState() {
 var state = loadState();
 var selectedDate = todayStr();   // day shown in Log / Trends micronutrients
 var waterDate = todayStr();      // day shown in Water
+var sleepDate = todayStr();      // night shown in the Sleep card (wake-up date)
+var sleepRange = 30;             // sleep chart range (days)
 var trendsRange = 14;            // calorie chart range
 var calCursor = { y: new Date().getFullYear(), m: new Date().getMonth() };
 
@@ -158,8 +160,9 @@ var RECENT_KEY = "cc-recents-v1";
 var RECIPE_KEY = "cc-recipes-v1";
 var FAST_KEY = "cc-fasting-v1";
 var REMINDER_KEY = "cc-reminders-v1";
+var SLEEP_KEY = "cc-sleep-v1";
 var WHATSNEW_KEY = "cc-whatsnew-v1";
-var EXTRA_KEYS = [FAV_KEY, RECENT_KEY, RECIPE_KEY, FAST_KEY, REMINDER_KEY, WHATSNEW_KEY];
+var EXTRA_KEYS = [FAV_KEY, RECENT_KEY, RECIPE_KEY, FAST_KEY, REMINDER_KEY, SLEEP_KEY, WHATSNEW_KEY];
 
 function loadJSON(key, fallback) {
   try {
@@ -189,6 +192,13 @@ var reminderCfg = Object.assign(
 );
 if (!reminderCfg.lastFired || typeof reminderCfg.lastFired !== "object") reminderCfg.lastFired = {};
 if (!reminderCfg.dismissed || typeof reminderCfg.dismissed !== "object") reminderCfg.dismissed = {};
+/* Sleep: one entry per night keyed by wake-up date —
+   { log: { "YYYY-MM-DD": { minutes, quality|null } }, targetMin }. */
+var sleepStore = loadJSON(SLEEP_KEY, null);
+if (!sleepStore || typeof sleepStore !== "object" || !sleepStore.log || typeof sleepStore.log !== "object") {
+  sleepStore = { log: {}, targetMin: window.Sleep ? window.Sleep.DEFAULT_TARGET_MIN : 480 };
+}
+if (!(Number(sleepStore.targetMin) > 0)) sleepStore.targetMin = window.Sleep ? window.Sleep.DEFAULT_TARGET_MIN : 480;
 
 /* A "snapshot" is everything needed to re-log a food in one tap: its
    per-100 g nutrition, its serving (if any), and the amount last chosen. */
@@ -361,6 +371,9 @@ function renderHome() {
     if (entriesFor(ds).length) { sum += totalsFor(ds).kcal; logged++; }
   }
   $("home-avg7").textContent = logged ? Math.round(sum / logged) + " kcal" : "—";
+
+  var lastNight = sleepEntryFor(today);
+  $("home-sleep").textContent = lastNight ? sleepDurText(lastNight.minutes) : "—";
 
   renderCalendar();
 }
@@ -1345,6 +1358,7 @@ function renderTrends() {
   renderMacroChart();
   renderMicros();
   renderWeight();
+  renderSleepChart();
 }
 
 /* ---------- Weight (in Trends tab) ---------- */
@@ -1538,6 +1552,100 @@ function cancelFast() {
   renderFasting();
 }
 
+/* ---------- Sleep tracking ----------
+   One entry per night, keyed by the morning's date (the day you woke
+   up): { minutes, quality|null }. Math lives in sleep.js. */
+function saveSleep() { saveJSON(SLEEP_KEY, sleepStore); }
+
+function sleepEntryFor(dateStr) {
+  var e = sleepStore.log[dateStr];
+  return e && window.Sleep.isValid(e.minutes) ? e : null;
+}
+
+function setSleepEntry(dateStr, minutes, quality) {
+  sleepStore.log[dateStr] = {
+    minutes: Math.round(minutes),
+    quality: quality >= 1 && quality <= 5 ? Math.round(quality) : null
+  };
+  saveSleep();
+}
+
+function deleteSleepEntry(dateStr) {
+  delete sleepStore.log[dateStr];
+  saveSleep();
+}
+
+function sleepDurText(min) { return window.Sleep.formatDuration(min); }
+
+var sleepFormDate = null; // date the entry form was last filled for
+
+function renderSleep() {
+  if (!$("sleep-card")) return;
+  $("sleep-picker").value = sleepDate;
+  var entry = sleepEntryFor(sleepDate);
+  $("sleep-amount").textContent = entry ? sleepDurText(entry.minutes) : "—";
+  var sub = t("sleep.subLine", { date: prettyDate(sleepDate), target: sleepDurText(sleepStore.targetMin) });
+  if (entry && entry.quality) sub += " · " + t("sleep.qualityLine", { q: entry.quality });
+  if (!entry) sub += " · " + t("sleep.noneYet");
+  $("sleep-sub").textContent = sub;
+  $("sleep-delete").hidden = !entry;
+  if (sleepFormDate !== sleepDate) {
+    sleepFormDate = sleepDate;
+    $("sleep-hours").value = entry ? Math.floor(entry.minutes / 60) : "";
+    $("sleep-mins").value = entry ? entry.minutes % 60 : "";
+    $("sleep-quality").value = entry && entry.quality ? String(entry.quality) : "";
+  }
+  $("sleep-target-hours").value = Math.floor(sleepStore.targetMin / 60);
+  $("sleep-target-mins").value = sleepStore.targetMin % 60;
+}
+
+function renderSleepChart() {
+  var box = $("sleep-chart");
+  if (!box) return;
+  var days = lastNDays(sleepRange);
+  var vals = days.map(function (ds) {
+    var e = sleepEntryFor(ds);
+    return e ? e.minutes : null;
+  });
+  var logged = vals.filter(function (v) { return v != null; });
+  var avg = window.Sleep.average(logged);
+  $("sleep-avg").textContent = avg != null ? sleepDurText(avg) : "—";
+  $("sleep-target-stat").textContent = sleepDurText(sleepStore.targetMin);
+  $("sleep-nights").textContent = String(logged.length);
+  if (!logged.length) {
+    box.innerHTML = '<p class="hint">' + esc(t("sleep.noneYet")) + "</p>";
+    return;
+  }
+  var target = sleepStore.targetMin;
+  var max = Math.max(target, Math.max.apply(null, logged)) * 1.12;
+  var W = 700, H = 230, padL = 52, padR = 10, padT = 14, padB = 28;
+  var iw = W - padL - padR, ih = H - padT - padB;
+  var bw = iw / days.length;
+  function Y(v) { return padT + (1 - v / max) * ih; }
+  var svg = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="' + esc(t("sleep.chartAria")) + '">';
+  svg += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (H - padB) + '" stroke="var(--line)"/>';
+  svg += '<line x1="' + padL + '" y1="' + (H - padB) + '" x2="' + (W - padR) + '" y2="' + (H - padB) + '" stroke="var(--line)"/>';
+  svg += '<text x="4" y="' + (Y(max / 1.12) + 4) + '" font-size="11" fill="var(--muted)">' + esc(sleepDurText(max / 1.12)) + "</text>";
+  var ty = Y(target);
+  svg += '<line x1="' + padL + '" y1="' + ty + '" x2="' + (W - padR) + '" y2="' + ty + '" stroke="var(--danger)" stroke-dasharray="5 4"/>';
+  svg += '<text x="' + (W - padR - 40) + '" y="' + (ty - 5) + '" font-size="11" fill="var(--danger)">' + esc(t("chart.target")) + "</text>";
+  var labelEvery = sleepRange > 30 ? 10 : (sleepRange > 14 ? 5 : 2);
+  days.forEach(function (ds, i) {
+    var v = vals[i];
+    var x = padL + i * bw;
+    if (v != null) {
+      var h = Math.max(0, (v / max) * ih);
+      svg += '<rect x="' + (x + 1.5).toFixed(1) + '" y="' + (H - padB - h).toFixed(1) + '" width="' + Math.max(1, bw - 3).toFixed(1) +
+        '" height="' + h.toFixed(1) + '" fill="var(--accent)" rx="2"><title>' + ds + ": " + esc(sleepDurText(v)) + "</title></rect>";
+    }
+    if (i % labelEvery === 0 || i === days.length - 1) {
+      svg += '<text x="' + (x + bw / 2).toFixed(1) + '" y="' + (H - 8) + '" font-size="10" fill="var(--muted)" text-anchor="middle">' + shortDate(ds) + "</text>";
+    }
+  });
+  svg += "</svg>";
+  box.innerHTML = svg;
+}
+
 /* ---------- Gentle meal reminders ----------
    Honest scope: checks run while the app is open (on load and every
    minute) and fire a notification where the browser supports it, plus a
@@ -1611,12 +1719,13 @@ function checkReminders() {
    changed since the release this device last saw. The seen release is
    stored on-device only; a first-ever visit just records the current
    release (the setup walkthrough covers the intro). */
-var APP_RELEASE = 14;
+var APP_RELEASE = 15;
 var RELEASE_NOTES = [
   { v: 11, keys: ["wn.v11a", "wn.v11b", "wn.v11c"] },
   { v: 12, keys: ["wn.v12a"] },
   { v: 13, keys: ["wn.v13a"] },
-  { v: 14, keys: ["wn.v14a"] }
+  { v: 14, keys: ["wn.v14a"] },
+  { v: 15, keys: ["wn.v15a"] }
 ];
 
 function whatsNewSeen() {
@@ -1873,7 +1982,8 @@ function downloadBackup() {
       recents: recents,
       recipes: myRecipes,
       fasting: fastingStore,
-      reminders: reminderCfg
+      reminders: reminderCfg,
+      sleep: sleepStore
     }
   };
   var done = function () {
@@ -1917,6 +2027,7 @@ function restoreBackup(file) {
       if (Array.isArray(parsed.stores.recipes)) saveJSON(RECIPE_KEY, parsed.stores.recipes);
       if (parsed.stores.fasting && typeof parsed.stores.fasting === "object") saveJSON(FAST_KEY, parsed.stores.fasting);
       if (parsed.stores.reminders && typeof parsed.stores.reminders === "object") saveJSON(REMINDER_KEY, parsed.stores.reminders);
+      if (parsed.stores.sleep && typeof parsed.stores.sleep === "object") saveJSON(SLEEP_KEY, parsed.stores.sleep);
     }
     var finish = function () { window.location.reload(); };
     if (window.Photos && window.Photos.importPhotos && Array.isArray(parsed.photos)) {
@@ -1953,6 +2064,7 @@ function renderAll() {
   renderTrends();
   renderWater();
   renderFasting();
+  renderSleep();
   renderPlanner();
 }
 
@@ -2103,6 +2215,60 @@ function init() {
   $("fasting-end").addEventListener("click", endFast);
   $("fasting-cancel").addEventListener("click", cancelFast);
   setInterval(function () { if (fastingStore.current) updateFastingClock(); }, 1000);
+
+  // Sleep
+  $("sleep-picker").addEventListener("change", function () { if (this.value) { sleepDate = this.value; renderSleep(); } });
+  $("sleep-prev").addEventListener("click", function () { sleepDate = shiftDate(sleepDate, -1); renderSleep(); });
+  $("sleep-next").addEventListener("click", function () { sleepDate = shiftDate(sleepDate, 1); renderSleep(); });
+  $("sleep-today").addEventListener("click", function () { sleepDate = todayStr(); renderSleep(); });
+  $("sleep-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var total = window.Sleep.toMinutes($("sleep-hours").value, $("sleep-mins").value);
+    var status = $("sleep-status");
+    if (!window.Sleep.isValid(total)) {
+      status.textContent = t("sleep.invalid");
+      status.className = "status error";
+      return;
+    }
+    var q = Number($("sleep-quality").value);
+    setSleepEntry(sleepDate, total, q >= 1 && q <= 5 ? q : null);
+    sleepFormDate = null; // refill the form from the saved entry
+    renderAll();
+    status.textContent = t("sleep.saved", { date: prettyDate(sleepDate) });
+    status.className = "status";
+  });
+  $("sleep-delete").addEventListener("click", function () {
+    deleteSleepEntry(sleepDate);
+    sleepFormDate = null;
+    renderAll();
+    var status = $("sleep-status");
+    status.textContent = t("sleep.deleted");
+    status.className = "status";
+  });
+  $("sleep-target-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var total = window.Sleep.toMinutes($("sleep-target-hours").value, $("sleep-target-mins").value);
+    var status = $("sleep-status");
+    if (!window.Sleep.isValid(total)) {
+      status.textContent = t("sleep.invalid");
+      status.className = "status error";
+      return;
+    }
+    sleepStore.targetMin = total;
+    saveSleep();
+    renderAll();
+    status.textContent = t("sleep.targetSaved", { dur: sleepDurText(total) });
+    status.className = "status";
+  });
+  document.querySelectorAll("[data-sleep-range]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      sleepRange = Number(btn.getAttribute("data-sleep-range")) || 30;
+      document.querySelectorAll("[data-sleep-range]").forEach(function (b) {
+        b.classList.toggle("active", b === btn);
+      });
+      renderSleepChart();
+    });
+  });
 
   // Planner
   $("plan-meals").addEventListener("change", function () {
@@ -2287,6 +2453,9 @@ function init() {
       myRecipes = [];
       fastingStore = { current: null, history: [] };
       reminderCfg = { enabled: false, lunch: "12:30", dinner: "18:30", lastFired: {}, dismissed: {} };
+      sleepStore = { log: {}, targetMin: window.Sleep ? window.Sleep.DEFAULT_TARGET_MIN : 480 };
+      sleepDate = todayStr();
+      sleepFormDate = null;
       if (typeof renderRecipeBuilder === "function") renderRecipeBuilder();
       if (typeof renderFasting === "function") renderFasting();
       if (typeof renderReminderSettings === "function") renderReminderSettings();

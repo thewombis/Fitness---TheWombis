@@ -36,7 +36,7 @@ function loadApp(seedStorage) {
   };
   sandbox.window = sandbox;
   sandbox.globalThis = sandbox;
-  return loadScripts(sandbox, ["i18n.js", "recipes.js", "fasting.js", "app.js"]);
+  return loadScripts(sandbox, ["i18n.js", "recipes.js", "fasting.js", "sleep.js", "app.js"]);
 }
 
 /* A permissive fake DOM: getElementById auto-creates element stubs with
@@ -100,7 +100,7 @@ function loadAppWithDom(seedStorage) {
   };
   sandbox.window = sandbox;
   sandbox.globalThis = sandbox;
-  return loadScripts(sandbox, ["i18n.js", "recipes.js", "fasting.js", "app.js"]);
+  return loadScripts(sandbox, ["i18n.js", "recipes.js", "fasting.js", "sleep.js", "app.js"]);
 }
 
 module.exports = { loadApp: loadApp, loadAppWithDom: loadAppWithDom };

@@ -108,4 +108,34 @@ app.applyLanguage();
 app.renderAll();
 assert.strictEqual(app.t("tab.home"), "Home");
 
+/* ---------- Sleep tracking ---------- */
+assert.strictEqual(app.sleepEntryFor(today), null, "no sleep entry yet");
+app.setSleepEntry(today, 450, 4);
+const sEntry = app.sleepEntryFor(today);
+assert.strictEqual(sEntry.minutes, 450);
+assert.strictEqual(sEntry.quality, 4);
+assert.strictEqual(JSON.parse(app._store["cc-sleep-v1"]).log[today].minutes, 450, "sleep persisted");
+// Saving again for the same night replaces it (one entry per night);
+// an out-of-range quality is dropped to null.
+app.setSleepEntry(today, 480, 9);
+assert.strictEqual(Object.keys(JSON.parse(app._store["cc-sleep-v1"]).log).length, 1);
+assert.strictEqual(app.sleepEntryFor(today).minutes, 480);
+assert.strictEqual(app.sleepEntryFor(today).quality, null);
+// Home "last night" stat and the Trends chart render from the entry.
+app.renderAll();
+assert.strictEqual(app.document.getElementById("home-sleep").textContent, "8h 00m");
+assert.ok(app.document.getElementById("sleep-chart").innerHTML.indexOf("<svg") === 0, "sleep chart rendered");
+assert.strictEqual(app.document.getElementById("sleep-nights").textContent, "1");
+assert.strictEqual(app.document.getElementById("sleep-avg").textContent, "8h 00m");
+app.sleepDate = today;
+app.renderSleep();
+assert.strictEqual(app.document.getElementById("sleep-amount").textContent, "8h 00m");
+assert.strictEqual(app.document.getElementById("sleep-delete").hidden, false);
+// Delete removes the night.
+app.deleteSleepEntry(today);
+assert.strictEqual(app.sleepEntryFor(today), null);
+assert.strictEqual(JSON.parse(app._store["cc-sleep-v1"]).log[today], undefined, "sleep delete persisted");
+app.renderAll();
+assert.strictEqual(app.document.getElementById("home-sleep").textContent, "—");
+
 console.log("smoke.test.js: all tests passed");

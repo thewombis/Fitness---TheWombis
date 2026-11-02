@@ -83,6 +83,7 @@
             <div class="stat"><span class="stat-num" id="home-streak">0 days</span><span class="stat-label" data-i18n="home.streak">Logging streak</span></div>
             <div class="stat"><span class="stat-num" id="home-goal">—</span><span class="stat-label" data-i18n="home.goal">Goal</span></div>
             <div class="stat"><span class="stat-num" id="home-avg7">—</span><span class="stat-label" data-i18n="home.avg7">7-day average (logged days)</span></div>
+            <div class="stat"><span class="stat-num" id="home-sleep">—</span><span class="stat-label" data-i18n="sleep.lastNight">Last night</span></div>
           </div>
         </div>
       </div>
@@ -234,6 +235,24 @@
 
     <div class="card">
       <div class="row space-between">
+        <h2 data-i18n="sleep.trendTitle">Sleep history</h2>
+        <div class="segmented" role="group" aria-label="Chart range" data-i18n-aria="aria.chartRange">
+          <button type="button" class="seg-btn" data-sleep-range="14" data-i18n="trends.d14">14 days</button>
+          <button type="button" class="seg-btn active" data-sleep-range="30" data-i18n="trends.d30">30 days</button>
+          <button type="button" class="seg-btn" data-sleep-range="90" data-i18n="sleep.d90">90 days</button>
+        </div>
+      </div>
+      <div class="weight-stats row">
+        <div class="stat"><span class="stat-num" id="sleep-avg">—</span><span class="stat-label" data-i18n="sleep.avg">Average</span></div>
+        <div class="stat"><span class="stat-num" id="sleep-target-stat">—</span><span class="stat-label" data-i18n="sleep.targetLabel">Nightly target</span></div>
+        <div class="stat"><span class="stat-num" id="sleep-nights">—</span><span class="stat-label" data-i18n="sleep.nights">Nights logged</span></div>
+      </div>
+      <div id="sleep-chart" class="chart-box"></div>
+      <p class="hint" data-i18n="sleep.targetHint">Dashed line is your nightly sleep target.</p>
+    </div>
+
+    <div class="card">
+      <div class="row space-between">
         <h2 data-i18n="trends.micros">Micronutrients</h2>
         <label class="inline-label"><span data-i18n="common.day">Day</span> <input type="date" id="micro-date" aria-label="Micronutrient day" data-i18n-aria="aria.microDay"></label>
       </div>
@@ -306,6 +325,46 @@
       <div id="fasting-status" class="status" role="status"></div>
       <h3 data-i18n="fasting.past">Past fasts</h3>
       <div id="fasting-history"><p class="hint" data-i18n="fasting.none">No fasts recorded yet.</p></div>
+    </div>
+
+    <div class="card" id="sleep-card">
+      <h2 data-i18n="sleep.title">Sleep</h2>
+      <p class="hint" data-i18n="sleep.hint">Log how long you slept each night. Entries are saved under the morning you woke up — pick a past day to add or fix an older night.</p>
+      <div class="day-nav">
+        <button type="button" id="sleep-prev" class="btn btn-ghost" data-i18n="common.prevDay">&larr; Prev day</button>
+        <input type="date" id="sleep-picker" aria-label="Sleep date" data-i18n-aria="aria.sleepDate">
+        <button type="button" id="sleep-next" class="btn btn-ghost" data-i18n="common.nextDay">Next day &rarr;</button>
+        <button type="button" id="sleep-today" class="btn btn-ghost" data-i18n="common.today">Today</button>
+      </div>
+      <div class="water-display">
+        <div class="water-amount" id="sleep-amount">—</div>
+        <div class="water-sub" id="sleep-sub"></div>
+      </div>
+      <form id="sleep-form" class="row">
+        <label class="inline-label"><span data-i18n="sleep.hours">Hours</span> <input type="number" id="sleep-hours" min="0" max="24" step="1"></label>
+        <label class="inline-label"><span data-i18n="sleep.minutes">Minutes</span> <input type="number" id="sleep-mins" min="0" max="59" step="1"></label>
+        <label class="inline-label"><span data-i18n="sleep.quality">Quality (optional)</span>
+          <select id="sleep-quality">
+            <option value="" data-i18n="sleep.qNone">No rating</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+          </select>
+        </label>
+        <button type="submit" class="btn btn-primary" data-i18n="sleep.save">Save sleep</button>
+        <button type="button" id="sleep-delete" class="btn btn-danger" data-i18n="sleep.delete" hidden>Delete entry</button>
+      </form>
+      <div id="sleep-status" class="status" role="status"></div>
+      <hr>
+      <form id="sleep-target-form" class="row">
+        <label class="inline-label"><span data-i18n="sleep.targetLabel">Nightly target</span>
+          <input type="number" id="sleep-target-hours" min="0" max="24" step="1"> <span data-i18n="sleep.hours">Hours</span>
+          <input type="number" id="sleep-target-mins" min="0" max="59" step="1"> <span data-i18n="sleep.minutes">Minutes</span>
+        </label>
+        <button type="submit" class="btn" data-i18n="water.saveGoal">Save goal</button>
+      </form>
     </div>
   </section>
 
@@ -588,6 +647,7 @@
 <script src="i18n.js" defer></script>
 <script src="recipes.js" defer></script>
 <script src="fasting.js" defer></script>
+<script src="sleep.js" defer></script>
 <script src="app.js" defer></script>
 <script src="workouts.js" defer></script>
 <script src="photos.js" defer></script>
