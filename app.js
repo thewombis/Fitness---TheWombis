@@ -947,6 +947,85 @@ function renderRecipeResults(results) {
   });
 }
 
+/* ---------- Voice logging (voice-to-search only) ----------
+   The transcript goes into the regular search box and runs the normal
+   database search; the user still taps the right match to log it. A
+   leading quantity ("two", "2") prefills the first result's quantity. */
+var voiceQty = null;
+var VOICE_NUMBER_WORDS = {
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8,
+  nine: 9, ten: 10, eleven: 11, twelve: 12, a: 1, an: 1, half: 0.5
+};
+var VOICE_LANGS = { en: "en-US", es: "es-ES", fr: "fr-FR", de: "de-DE", pt: "pt-BR", it: "it-IT", zh: "zh-CN", ja: "ja-JP" };
+
+function parseVoiceTranscript(text) {
+  var clean = String(text || "").trim();
+  var m = clean.match(/^(\d+(?:[.,]\d+)?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|a|an|half)\s+(.+)$/i);
+  if (!m) return { qty: null, query: clean };
+  var w = m[1].toLowerCase();
+  var qty = Object.prototype.hasOwnProperty.call(VOICE_NUMBER_WORDS, w)
+    ? VOICE_NUMBER_WORDS[w]
+    : Number(w.replace(",", "."));
+  return { qty: qty > 0 ? qty : null, query: m[2].trim() };
+}
+
+function setupVoice() {
+  var btn = $("voice-btn");
+  if (!btn) return;
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    var note = $("voice-note");
+    if (note) note.hidden = false;
+    return;
+  }
+  btn.hidden = false;
+  var rec = null;
+  var label = btn.querySelector("span");
+  btn.addEventListener("click", function () {
+    var status = $("search-status");
+    if (rec) { try { rec.stop(); } catch (e) { /* already stopping */ } return; }
+    rec = new SR();
+    rec.lang = VOICE_LANGS[state.settings.language] || "en-US";
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+    btn.classList.add("listening");
+    if (label) label.textContent = "Listening…";
+    status.textContent = "Listening… say a food, like \"two eggs\" or \"chicken salad\". Tap Speak again to stop.";
+    status.className = "status";
+    rec.onresult = function (ev) {
+      var transcript = (ev.results[0] && ev.results[0][0] && ev.results[0][0].transcript) || "";
+      var parsed = parseVoiceTranscript(transcript);
+      voiceQty = parsed.qty;
+      $("search-input").value = parsed.query;
+      var form = $("search-form");
+      if (form.requestSubmit) form.requestSubmit();
+      else form.dispatchEvent(new Event("submit", { cancelable: true }));
+    };
+    rec.onerror = function (ev) {
+      if (ev.error === "not-allowed" || ev.error === "service-not-allowed") {
+        status.textContent = "Microphone access was blocked. Allow microphone permission for this site to use voice search — typing still works.";
+        status.className = "status error";
+      } else if (ev.error === "no-speech") {
+        status.textContent = "Didn't catch that. Try again, or type your search.";
+        status.className = "status error";
+      } else if (ev.error && ev.error !== "aborted") {
+        status.textContent = "Voice search hit a problem (" + ev.error + "). You can still type your search.";
+        status.className = "status error";
+      }
+    };
+    rec.onend = function () {
+      rec = null;
+      btn.classList.remove("listening");
+      if (label) label.textContent = "Speak";
+    };
+    try { rec.start(); } catch (e) {
+      rec = null;
+      btn.classList.remove("listening");
+      if (label) label.textContent = "Speak";
+    }
+  });
+}
+
 function lookupBarcode(code) {
   var status = $("barcode-status");
   status.textContent = "Looking up barcode " + code + "…";
@@ -1631,6 +1710,7 @@ function init() {
   applyLanguage();
   renderSettings();
   renderAll();
+  setupVoice();
 
   document.querySelectorAll(".tab-btn").forEach(function (btn) {
     btn.addEventListener("click", function () { switchTab(btn.getAttribute("data-tab")); });
@@ -1691,6 +1771,13 @@ function init() {
         status.textContent = results.length + " result" + (results.length === 1 ? "" : "s") + ". Set the amount, then Add.";
       }
       renderResults(results);
+      // Voice dictation may have supplied a quantity: prefill the first
+      // result's quantity box (serving-mode rows have one) and clear it.
+      if (voiceQty != null) {
+        var firstQty = $("qty-0");
+        if (firstQty) firstQty.value = voiceQty;
+        voiceQty = null;
+      }
     });
   });
 
