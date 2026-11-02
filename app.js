@@ -1389,6 +1389,85 @@ function addWater(ml) {
   saveState(); renderWater();
 }
 
+/* ---------- Fasting timer ---------- */
+var fastingTargetPick = 16;
+
+function saveFasting() { saveJSON(FAST_KEY, fastingStore); }
+
+function renderFasting() {
+  if (!$("fasting-card")) return;
+  var cur = fastingStore.current;
+  var targets = $("fasting-targets");
+  targets.innerHTML = window.Fasting.TARGETS.map(function (h) {
+    var active = cur ? cur.targetHours === h : fastingTargetPick === h;
+    return '<button type="button" class="seg-btn' + (active ? " active" : "") + '" data-fast-target="' + h + '">' + h + "h</button>";
+  }).join("");
+  targets.querySelectorAll("[data-fast-target]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      fastingTargetPick = Number(btn.getAttribute("data-fast-target"));
+      renderFasting();
+    });
+  });
+  $("fasting-idle").hidden = !!cur;
+  $("fasting-live").hidden = !cur;
+  if (cur) updateFastingClock();
+  var hist = $("fasting-history");
+  if (!fastingStore.history.length) {
+    hist.innerHTML = '<p class="hint">No fasts recorded yet.</p>';
+  } else {
+    hist.innerHTML = fastingStore.history.slice().reverse().slice(0, 10).map(function (f) {
+      return '<div class="log-item"><div><span class="log-name">' + esc(prettyDate(todayStr(new Date(f.end)))) + '</span> ' +
+        '<span class="log-meta">target ' + f.targetHours + "h · " + (f.met ? "target met" : "ended early") + '</span></div>' +
+        '<div><span class="log-kcal">' + window.Fasting.formatDuration(f.durationMs) + "</span></div></div>";
+    }).join("");
+  }
+}
+
+function updateFastingClock() {
+  var cur = fastingStore.current;
+  if (!cur || !$("fasting-elapsed")) return;
+  var now = Date.now();
+  var el = window.Fasting.elapsedMs(cur.start, now);
+  $("fasting-elapsed").textContent = window.Fasting.formatElapsed(el);
+  var pct = Math.round(window.Fasting.progress(cur.start, cur.targetHours, now) * 100);
+  $("fasting-bar").style.width = pct + "%";
+  $("fasting-pct").textContent = pct + "% of " + cur.targetHours + "h target";
+  var startD = new Date(cur.start);
+  $("fasting-sub").textContent = "Started " + prettyDate(todayStr(startD)) + " at " +
+    startD.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + (pct >= 100 ? " · target reached" : "");
+}
+
+function startFast() {
+  fastingStore.current = { start: Date.now(), targetHours: fastingTargetPick };
+  saveFasting();
+  renderFasting();
+  $("fasting-status").textContent = "Fast started with a " + fastingTargetPick + "h target.";
+  $("fasting-status").className = "status";
+}
+
+function endFast() {
+  var cur = fastingStore.current;
+  if (!cur) return;
+  var done = window.Fasting.completeFast(cur.start, Date.now(), cur.targetHours);
+  fastingStore.history.push(done);
+  fastingStore.current = null;
+  fastingTargetPick = done.targetHours;
+  saveFasting();
+  renderFasting();
+  $("fasting-status").textContent = "Fast ended: " + window.Fasting.formatDuration(done.durationMs) +
+    (done.met ? " — target met." : " (target was " + done.targetHours + "h).");
+  $("fasting-status").className = "status";
+}
+
+function cancelFast() {
+  if (!fastingStore.current) return;
+  if (!window.confirm("Cancel this fast without recording it?")) return;
+  fastingTargetPick = fastingStore.current.targetHours;
+  fastingStore.current = null;
+  saveFasting();
+  renderFasting();
+}
+
 /* ---------- Meal planner ---------- */
 var MEAL_SPLITS = {
   3: [["Breakfast", 30], ["Lunch", 35], ["Dinner", 35]],
@@ -1699,6 +1778,7 @@ function renderAll() {
   renderRecipeBuilder();
   renderTrends();
   renderWater();
+  renderFasting();
   renderPlanner();
 }
 
@@ -1842,6 +1922,12 @@ function init() {
         : "Daily water goal saved: " + gMl + " ml.";
     }
   });
+
+  // Fasting
+  $("fasting-start").addEventListener("click", startFast);
+  $("fasting-end").addEventListener("click", endFast);
+  $("fasting-cancel").addEventListener("click", cancelFast);
+  setInterval(function () { if (fastingStore.current) updateFastingClock(); }, 1000);
 
   // Planner
   $("plan-meals").addEventListener("change", function () {

@@ -274,6 +274,32 @@
       </form>
       <div id="water-status" class="status" role="status"></div>
     </div>
+
+    <div class="card" id="fasting-card">
+      <h2>Fasting</h2>
+      <p class="hint">Track an intermittent fast. The timer keeps running from the saved start time, even if you close and reopen the app.</p>
+      <div id="fasting-idle">
+        <div class="segmented" id="fasting-targets" role="group" aria-label="Fasting target hours"></div>
+        <div class="row">
+          <button type="button" class="btn btn-primary" id="fasting-start">Start fast</button>
+        </div>
+      </div>
+      <div id="fasting-live" hidden>
+        <div class="water-display">
+          <div class="water-amount" id="fasting-elapsed">00:00:00</div>
+          <div class="water-sub" id="fasting-sub"></div>
+        </div>
+        <div class="bar"><div class="bar-fill" id="fasting-bar"></div></div>
+        <p class="water-pct" id="fasting-pct"></p>
+        <div class="row">
+          <button type="button" class="btn btn-primary" id="fasting-end">End fast</button>
+          <button type="button" class="btn btn-ghost" id="fasting-cancel">Cancel fast</button>
+        </div>
+      </div>
+      <div id="fasting-status" class="status" role="status"></div>
+      <h3>Past fasts</h3>
+      <div id="fasting-history"><p class="hint">No fasts recorded yet.</p></div>
+    </div>
   </section>
 
   <!-- ============ WORKOUTS ============ -->
@@ -520,6 +546,7 @@
 
 <script src="html5-qrcode.min.js" defer></script>
 <script src="recipes.js" defer></script>
+<script src="fasting.js" defer></script>
 <script src="app.js" defer></script>
 <script src="workouts.js" defer></script>
 <script src="photos.js" defer></script>
