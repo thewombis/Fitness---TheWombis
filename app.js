@@ -1300,9 +1300,9 @@ function renderMacroChart() {
 
 function renderMicros() {
   $("micro-date").value = selectedDate;
-  var t = totalsFor(selectedDate);
+  var tot = totalsFor(selectedDate);
   var html = MICROS.map(function (m) {
-    var v = t.micros[m.key];
+    var v = tot.micros[m.key];
     var pctv = Math.max(0, Math.min(100, (v / m.target) * 100));
     var shown = v >= 100 ? Math.round(v) : round1(v);
     return '<div class="micro"><span class="micro-name">' + t("micro." + m.key) + '</span>' +
@@ -2095,9 +2095,9 @@ function init() {
     if (cw !== "" && Number(cw) > 0) {
       var kg = fromDisplayWeight(Number(cw));
       state.settings.currentWeightKg = kg;
-      var t = todayStr();
-      state.weights = state.weights.filter(function (w) { return w.date !== t; });
-      state.weights.push({ date: t, kg: kg });
+      var todayS = todayStr();
+      state.weights = state.weights.filter(function (w) { return w.date !== todayS; });
+      state.weights.push({ date: todayS, kg: kg });
     }
     saveState(); renderSettings(); renderAll();
     $("settings-status").textContent = t("settings.saved");
