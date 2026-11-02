@@ -124,6 +124,15 @@
       <div id="search-status" class="status" role="status"></div>
       <ul id="search-results" class="results"></ul>
 
+      <div id="favorites-box" hidden>
+        <h3 class="quick-title">Favorites</h3>
+        <div id="favorites-list" class="quick-list"></div>
+      </div>
+      <div id="recents-box" hidden>
+        <h3 class="quick-title">Recent foods</h3>
+        <div id="recents-list" class="quick-list"></div>
+      </div>
+
       <hr>
       <form id="barcode-form" class="row">
         <input type="text" id="barcode-input" inputmode="numeric" placeholder="Type or paste a barcode number" aria-label="Barcode">
@@ -143,6 +152,7 @@
 
     <div class="card">
       <h2>Food log</h2>
+      <div id="copy-yesterday" class="copy-row" hidden></div>
       <div id="log-empty" class="hint">Nothing logged for this day yet. Search above to add your first food.</div>
       <div id="log-list"></div>
     </div>

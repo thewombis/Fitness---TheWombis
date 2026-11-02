@@ -105,6 +105,115 @@ function saveState() {
   try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) { /* storage full or blocked */ }
 }
 
+/* ---------- Extra on-device stores ----------
+   Favorites, recents, recipes, fasting and reminders each live under their
+   own localStorage key, so the main state object (and existing user data)
+   is never reshaped. Every store is included in Settings backups and is
+   cleared by the Settings erase-all flow. */
+var FAV_KEY = "cc-favorites-v1";
+var RECENT_KEY = "cc-recents-v1";
+var RECIPE_KEY = "cc-recipes-v1";
+var FAST_KEY = "cc-fasting-v1";
+var REMINDER_KEY = "cc-reminders-v1";
+var EXTRA_KEYS = [FAV_KEY, RECENT_KEY, RECIPE_KEY, FAST_KEY, REMINDER_KEY];
+
+function loadJSON(key, fallback) {
+  try {
+    var raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    var v = JSON.parse(raw);
+    return v == null ? fallback : v;
+  } catch (e) { return fallback; }
+}
+function saveJSON(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* storage full or blocked */ }
+}
+
+var favorites = loadJSON(FAV_KEY, []);
+if (!Array.isArray(favorites)) favorites = [];
+var recents = loadJSON(RECENT_KEY, []);
+if (!Array.isArray(recents)) recents = [];
+var myRecipes = loadJSON(RECIPE_KEY, []);
+if (!Array.isArray(myRecipes)) myRecipes = [];
+var fastingStore = loadJSON(FAST_KEY, null);
+if (!fastingStore || typeof fastingStore !== "object" || !Array.isArray(fastingStore.history)) {
+  fastingStore = { current: null, history: [] };
+}
+var reminderCfg = Object.assign(
+  { enabled: false, lunch: "12:30", dinner: "18:30", lastFired: {} },
+  loadJSON(REMINDER_KEY, {})
+);
+if (!reminderCfg.lastFired || typeof reminderCfg.lastFired !== "object") reminderCfg.lastFired = {};
+
+/* A "snapshot" is everything needed to re-log a food in one tap: its
+   per-100 g nutrition, its serving (if any), and the amount last chosen. */
+function foodKey(food) {
+  return (String(food.name || "") + "|" + String(food.brand || "")).toLowerCase();
+}
+function foodSnapshot(food, grams, disp) {
+  var per100 = { kcal: food.per100.kcal, protein: food.per100.protein, carbs: food.per100.carbs, fat: food.per100.fat, micros: Object.assign({}, food.per100.micros || {}) };
+  return {
+    key: foodKey(food),
+    name: food.name,
+    brand: food.brand || "",
+    source: food.source || "",
+    per100: per100,
+    serving: food.serving ? { amount: food.serving.amount, unit: food.serving.unit, label: food.serving.label || null } : null,
+    grams: grams || null,
+    disp: disp || null
+  };
+}
+function snapshotFromEntry(it) {
+  var serving = null;
+  if (it.servingAmount) serving = { amount: it.servingAmount, unit: it.servingUnit || "g", label: it.servingLabel || null };
+  var disp = it.dispUnit ? { qty: it.dispQty, unit: it.dispUnit } : null;
+  return foodSnapshot({ name: it.name, brand: it.brand, per100: it.per100, serving: serving }, it.grams, disp);
+}
+function isFavorite(food) {
+  var k = foodKey(food);
+  return favorites.some(function (f) { return f.key === k; });
+}
+function toggleFavorite(snap) {
+  var i = favorites.findIndex(function (f) { return f.key === snap.key; });
+  if (i >= 0) favorites.splice(i, 1); else favorites.push(snap);
+  saveJSON(FAV_KEY, favorites);
+  return i < 0; /* true if now a favorite */
+}
+function pushRecent(snap) {
+  recents = recents.filter(function (r) { return r.key !== snap.key; });
+  recents.unshift(snap);
+  if (recents.length > 20) recents.length = 20;
+  saveJSON(RECENT_KEY, recents);
+}
+function snapshotGrams(snap) {
+  if (snap.disp) {
+    if (snap.disp.unit === "serving" && snap.serving) return snap.disp.qty * snap.serving.amount;
+    if (snap.disp.unit === "oz") return snap.disp.qty * ML_PER_OZ;
+    if (snap.disp.unit === "ml") return snap.disp.qty;
+    if (snap.disp.unit === "g") return snap.disp.qty;
+  }
+  if (snap.grams) return snap.grams;
+  if (snap.serving) return snap.serving.amount;
+  return 100;
+}
+function snapshotAmountText(snap) {
+  var it = { grams: snapshotGrams(snap) };
+  if (snap.disp) {
+    it.dispQty = snap.disp.qty;
+    it.dispUnit = snap.disp.unit;
+    if (snap.disp.unit === "serving" && snap.serving) {
+      it.servingAmount = snap.serving.amount;
+      it.servingUnit = snap.serving.unit;
+      it.servingLabel = snap.serving.label;
+    }
+  }
+  return entryAmountText(it);
+}
+function logSnapshot(snap) {
+  var food = { name: snap.name, brand: snap.brand, source: snap.source || "", per100: snap.per100, serving: snap.serving || null };
+  addEntry(food, snapshotGrams(snap), snap.disp || null);
+}
+
 function unitLabel() { return state.settings.unit === "kg" ? "kg" : "lb"; }
 function toDisplayWeight(kg) { return state.settings.unit === "kg" ? kg : kg * LB_PER_KG; }
 function fromDisplayWeight(v) { return state.settings.unit === "kg" ? v : v / LB_PER_KG; }
@@ -252,6 +361,7 @@ function renderLogSummary() {
 
 function renderLog() {
   renderLogSummary();
+  renderCopyYesterday();
   var list = $("log-list");
   var items = dayEntries();
   $("log-empty").style.display = items.length ? "none" : "block";
@@ -264,11 +374,13 @@ function renderLog() {
     mealItems.forEach(function (it) {
       var s = scaledNutrients(it.per100, it.grams);
       mealKcal += s.kcal;
+      var fav = isFavorite(it);
       rows += '<div class="log-item"><div>' +
         '<span class="log-name">' + esc(it.name) + "</span> " +
         '<span class="log-meta">' + (it.brand ? esc(it.brand) + " · " : "") + entryAmountText(it) + " · P " +
         round1(s.protein) + " · C " + round1(s.carbs) + " · F " + round1(s.fat) + "</span></div>" +
         '<div><span class="log-kcal">' + Math.round(s.kcal) + " kcal</span>" +
+        '<button type="button" class="fav-btn" data-fav-entry="' + it.id + '" aria-pressed="' + fav + '" aria-label="Toggle favorite for ' + esc(it.name) + '" title="Favorite">' + (fav ? "★" : "☆") + "</button>" +
         '<button type="button" class="log-remove" data-remove="' + it.id + '" aria-label="Remove ' + esc(it.name) + '">&times;</button></div></div>';
     });
     html += '<div class="meal-group"><h3>' + meal + ' <span class="meal-kcal">' + Math.round(mealKcal) + " kcal</span></h3>" + rows + "</div>";
@@ -279,6 +391,15 @@ function renderLog() {
       var id = btn.getAttribute("data-remove");
       state.entries[selectedDate] = dayEntries().filter(function (i) { return String(i.id) !== String(id); });
       saveState(); renderAll();
+    });
+  });
+  list.querySelectorAll("[data-fav-entry]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var id = btn.getAttribute("data-fav-entry");
+      var it = dayEntries().filter(function (i) { return String(i.id) === String(id); })[0];
+      if (!it) return;
+      toggleFavorite(snapshotFromEntry(it));
+      renderAll();
     });
   });
 }
@@ -453,6 +574,31 @@ function servingDisplay(sv) {
   return sv.label ? "1 " + sv.label + " · " + amt : amt;
 }
 
+/* Read the amount controls of a result row (main search uses ids qty-N /
+   unit-N / grams-N; the recipe builder uses the r- prefixed equivalents)
+   and return { grams, disp } for addEntry(). */
+function amountFromControls(food, qtyId, unitId, gramsId) {
+  var grams, disp = null;
+  if (food.serving) {
+    var q = Number($(qtyId).value);
+    if (!(q > 0)) q = 1;
+    var mode = $(unitId).value;
+    if (mode === "serving") {
+      grams = q * food.serving.amount;
+      disp = { qty: q, unit: "serving" };
+    } else if (mode === "volume") {
+      grams = waterImperial() ? q * ML_PER_OZ : q;
+      disp = { qty: q, unit: waterImperial() ? "oz" : "ml" };
+    } else {
+      grams = q;
+      disp = { qty: q, unit: "g" };
+    }
+  } else {
+    grams = Number($(gramsId).value) || 100;
+  }
+  return { grams: grams, disp: disp };
+}
+
 function renderResults(results) {
   var ul = $("search-results");
   if (!results.length) { ul.innerHTML = ""; return; }
@@ -472,36 +618,33 @@ function renderResults(results) {
     } else {
       control = '<input type="number" class="result-grams" id="grams-' + idx + '" value="100" min="1" step="1" aria-label="Grams"> g';
     }
+    var fav = isFavorite(r);
     return '<li class="result"><div class="result-main">' +
       '<span class="result-name">' + esc(r.name) + "</span> " +
       '<span class="source-tag">' + esc(r.source) + "</span>" +
       '<div class="result-meta">' + meta + "</div></div>" +
       control +
+      '<button type="button" class="fav-btn" data-fav="' + idx + '" aria-pressed="' + fav + '" aria-label="Toggle favorite for ' + esc(r.name) + '" title="Favorite">' + (fav ? "★" : "☆") + "</button>" +
       '<button type="button" class="btn btn-primary btn-small" data-add="' + idx + '"><svg width="24" height="24" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Add</span></button></li>';
   }).join("");
   ul.querySelectorAll("[data-add]").forEach(function (btn) {
     btn.addEventListener("click", function () {
       var idx = Number(btn.getAttribute("data-add"));
       var food = results[idx];
-      var grams, disp = null;
-      if (food.serving) {
-        var q = Number($("qty-" + idx).value);
-        if (!(q > 0)) q = 1;
-        var mode = $("unit-" + idx).value;
-        if (mode === "serving") {
-          grams = q * food.serving.amount;
-          disp = { qty: q, unit: "serving" };
-        } else if (mode === "volume") {
-          grams = waterImperial() ? q * ML_PER_OZ : q;
-          disp = { qty: q, unit: waterImperial() ? "oz" : "ml" };
-        } else {
-          grams = q;
-          disp = { qty: q, unit: "g" };
-        }
-      } else {
-        grams = Number($("grams-" + idx).value) || 100;
-      }
-      addEntry(food, grams, disp);
+      var amt = amountFromControls(food, "qty-" + idx, "unit-" + idx, "grams-" + idx);
+      addEntry(food, amt.grams, amt.disp);
+    });
+  });
+  ul.querySelectorAll("[data-fav]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var idx = Number(btn.getAttribute("data-fav"));
+      var food = results[idx];
+      var amt = amountFromControls(food, "qty-" + idx, "unit-" + idx, "grams-" + idx);
+      var nowFav = toggleFavorite(foodSnapshot(food, amt.grams, amt.disp));
+      $("search-status").textContent = nowFav ? "Saved to Favorites. Find it under the search box for one-tap logging." : "Removed from Favorites.";
+      $("search-status").className = "status";
+      renderResults(results);
+      renderQuickAdd();
     });
   });
 }
@@ -526,8 +669,81 @@ function addEntry(food, grams, disp) {
   }
   if (!state.entries[selectedDate]) state.entries[selectedDate] = [];
   state.entries[selectedDate].push(entry);
+  pushRecent(foodSnapshot(food, entry.grams, disp));
   saveState(); renderAll();
   $("search-status").textContent = "Added " + food.name + " to " + entry.meal + ".";
+  $("search-status").className = "status";
+}
+
+/* ---------- Quick re-log: favorites, recents, copy yesterday ---------- */
+function renderQuickAdd() {
+  var favBox = $("favorites-box"), recBox = $("recents-box");
+  if (!favBox || !recBox) return;
+  function row(snap, kind, idx) {
+    var s = scaledNutrients(snap.per100, snapshotGrams(snap));
+    var fav = isFavorite(snap);
+    return '<div class="quick-row"><div class="quick-main">' +
+      '<span class="result-name">' + esc(snap.name) + "</span>" +
+      '<div class="result-meta">' + (snap.brand ? esc(snap.brand) + " · " : "") + esc(snapshotAmountText(snap)) + " · " + Math.round(s.kcal) + " kcal</div></div>" +
+      '<button type="button" class="fav-btn" data-quick-fav="' + kind + ":" + idx + '" aria-pressed="' + fav + '" aria-label="Toggle favorite for ' + esc(snap.name) + '" title="Favorite">' + (fav ? "★" : "☆") + "</button>" +
+      '<button type="button" class="btn btn-primary btn-small" data-quick-log="' + kind + ":" + idx + '">Log</button></div>';
+  }
+  favBox.hidden = !favorites.length;
+  recBox.hidden = !recents.length;
+  $("favorites-list").innerHTML = favorites.map(function (s, i) { return row(s, "fav", i); }).join("");
+  $("recents-list").innerHTML = recents.map(function (s, i) { return row(s, "recent", i); }).join("");
+  document.querySelectorAll("[data-quick-log]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var parts = btn.getAttribute("data-quick-log").split(":");
+      var snap = (parts[0] === "fav" ? favorites : recents)[Number(parts[1])];
+      if (snap) logSnapshot(snap);
+    });
+  });
+  document.querySelectorAll("[data-quick-fav]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var parts = btn.getAttribute("data-quick-fav").split(":");
+      var snap = (parts[0] === "fav" ? favorites : recents)[Number(parts[1])];
+      if (!snap) return;
+      toggleFavorite(snap);
+      renderQuickAdd();
+      renderLog();
+    });
+  });
+}
+
+function renderCopyYesterday() {
+  var box = $("copy-yesterday");
+  if (!box) return;
+  var src = shiftDate(selectedDate, -1);
+  var srcEntries = entriesFor(src);
+  if (!srcEntries.length) { box.hidden = true; box.innerHTML = ""; return; }
+  box.hidden = false;
+  var html = '<span class="copy-label">Copy from ' + esc(prettyDate(src)) + ":</span>";
+  MEALS.forEach(function (meal) {
+    var n = srcEntries.filter(function (e) { return e.meal === meal; }).length;
+    if (n) html += '<button type="button" class="btn btn-small" data-copy-meal="' + meal + '">' + meal + " (" + n + ")</button>";
+  });
+  html += '<button type="button" class="btn btn-small" data-copy-all="1">Whole day (' + srcEntries.length + ")</button>";
+  box.innerHTML = html;
+  box.querySelectorAll("[data-copy-meal]").forEach(function (btn) {
+    btn.addEventListener("click", function () { copyFromYesterday(btn.getAttribute("data-copy-meal")); });
+  });
+  var allBtn = box.querySelector("[data-copy-all]");
+  if (allBtn) allBtn.addEventListener("click", function () { copyFromYesterday(null); });
+}
+
+function copyFromYesterday(meal) {
+  var src = shiftDate(selectedDate, -1);
+  var list = entriesFor(src).filter(function (e) { return !meal || e.meal === meal; });
+  if (!list.length) return;
+  if (!state.entries[selectedDate]) state.entries[selectedDate] = [];
+  list.forEach(function (e, i) {
+    var c = JSON.parse(JSON.stringify(e));
+    c.id = Date.now() + "-" + i + "-" + Math.floor(Math.random() * 100000);
+    state.entries[selectedDate].push(c);
+  });
+  saveState(); renderAll();
+  $("search-status").textContent = "Copied " + list.length + " item" + (list.length === 1 ? "" : "s") + " from " + prettyDate(src) + ".";
   $("search-status").className = "status";
 }
 
@@ -1119,7 +1335,14 @@ function downloadBackup() {
   var payload = {
     app: "calorie-counter", kind: "backup", version: 1,
     exportedAt: new Date().toISOString(),
-    data: state, photos: []
+    data: state, photos: [],
+    stores: {
+      favorites: favorites,
+      recents: recents,
+      recipes: myRecipes,
+      fasting: fastingStore,
+      reminders: reminderCfg
+    }
   };
   var done = function () {
     var blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
@@ -1155,6 +1378,14 @@ function restoreBackup(file) {
     selectedDate = todayStr();
     waterDate = todayStr();
     saveState();
+    // Newer backups also carry the extra stores; older ones simply omit them.
+    if (parsed.stores && typeof parsed.stores === "object") {
+      if (Array.isArray(parsed.stores.favorites)) saveJSON(FAV_KEY, parsed.stores.favorites);
+      if (Array.isArray(parsed.stores.recents)) saveJSON(RECENT_KEY, parsed.stores.recents);
+      if (Array.isArray(parsed.stores.recipes)) saveJSON(RECIPE_KEY, parsed.stores.recipes);
+      if (parsed.stores.fasting && typeof parsed.stores.fasting === "object") saveJSON(FAST_KEY, parsed.stores.fasting);
+      if (parsed.stores.reminders && typeof parsed.stores.reminders === "object") saveJSON(REMINDER_KEY, parsed.stores.reminders);
+    }
     var finish = function () { window.location.reload(); };
     if (window.Photos && window.Photos.importPhotos && Array.isArray(parsed.photos)) {
       window.Photos.importPhotos(parsed.photos).then(finish).catch(finish);
@@ -1185,6 +1416,7 @@ function closeErase() {
 function renderAll() {
   renderHome();
   renderLog();
+  renderQuickAdd();
   renderTrends();
   renderWater();
   renderPlanner();
@@ -1401,8 +1633,17 @@ function init() {
   });
 
   $("clear-data").addEventListener("click", function () {
-    askErase("This permanently erases ALL food logs, weigh-ins, water, meal plans, and settings stored on this device. Everything is stored only on this device, so there is no backup and this cannot be undone. Progress photos are erased separately, from the Photo Diary tab.", function () {
+    askErase("This permanently erases ALL food logs, weigh-ins, water, meal plans, settings, favorites, recent foods, saved recipes, fasting history, and reminder settings stored on this device. Everything is stored only on this device, so there is no backup and this cannot be undone. Progress photos are erased separately, from the Photo Diary tab.", function () {
       state = defaultState();
+      EXTRA_KEYS.forEach(function (k) { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } });
+      favorites = [];
+      recents = [];
+      myRecipes = [];
+      fastingStore = { current: null, history: [] };
+      reminderCfg = { enabled: false, lunch: "12:30", dinner: "18:30", lastFired: {} };
+      if (typeof renderRecipeBuilder === "function") renderRecipeBuilder();
+      if (typeof renderFasting === "function") renderFasting();
+      if (typeof renderReminderSettings === "function") renderReminderSettings();
       selectedDate = todayStr();
       waterDate = todayStr();
       saveState(); applyTheme(); applyLanguage(); renderSettings(); renderAll();
