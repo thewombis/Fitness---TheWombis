@@ -1,13 +1,36 @@
 "use strict";
 
-/* Calorie Counter — standalone test build.
+/* Calorie Counter — full production build (client-side).
    Data sources: Open Food Facts and USDA FoodData Central public APIs.
-   Persistence: browser localStorage only (per-device test data). */
+   Persistence: browser localStorage (logs, settings, water, planner)
+   and IndexedDB (progress photos, handled in photos.js). No accounts,
+   no server: everything stays on the visitor's device. */
 
-var LS_KEY = "calorie-counter-test-v1";
+var LS_KEY = "calorie-counter-test-v1"; // kept from the first build so existing logs carry over
 var MEALS = ["Breakfast", "Lunch", "Dinner", "Snack"];
 var LB_PER_KG = 2.2046226218;
+var ML_PER_OZ = 29.5735;
 
+/* Micronutrients tracked, with display unit and daily target.
+   Internal storage units (per 100 g of food):
+   fiber g, iron mg, calcium mg, vitA µg, vitC mg, vitD µg, b12 µg, folate µg, potassium mg. */
+var MICROS = [
+  { key: "fiber",     name: "Fiber",      unit: "g",  target: 28 },
+  { key: "iron",      name: "Iron",       unit: "mg", target: 18 },
+  { key: "calcium",   name: "Calcium",    unit: "mg", target: 1000 },
+  { key: "vitA",      name: "Vitamin A",  unit: "µg", target: 900 },
+  { key: "vitC",      name: "Vitamin C",  unit: "mg", target: 90 },
+  { key: "vitD",      name: "Vitamin D",  unit: "µg", target: 20 },
+  { key: "b12",       name: "Vitamin B12", unit: "µg", target: 2.4 },
+  { key: "folate",    name: "Folate",     unit: "µg", target: 400 },
+  { key: "potassium", name: "Potassium",  unit: "mg", target: 3500 }
+];
+
+function emptyMicros() {
+  return { fiber: 0, iron: 0, calcium: 0, vitA: 0, vitC: 0, vitD: 0, b12: 0, folate: 0, potassium: 0 };
+}
+
+/* ---------- Date helpers ---------- */
 function todayStr(d) {
   var dt = d ? new Date(d) : new Date();
   var m = String(dt.getMonth() + 1).padStart(2, "0");
@@ -21,6 +44,13 @@ function shiftDate(dateStr, days) {
   return todayStr(dt);
 }
 
+function prettyDate(dateStr) {
+  var parts = dateStr.split("-").map(Number);
+  var dt = new Date(parts[0], parts[1] - 1, parts[2]);
+  return dt.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+}
+
+/* ---------- Small utilities ---------- */
 function esc(s) {
   return String(s == null ? "" : s)
     .replace(/&/g, "&amp;")
@@ -30,32 +60,46 @@ function esc(s) {
 }
 
 function round1(n) { return Math.round(n * 10) / 10; }
+function $(id) { return document.getElementById(id); }
+function num(v) { var n = Number(v); return isFinite(n) ? n : 0; }
 
+/* ---------- State ---------- */
 function defaultState() {
   return {
-    settings: { target: 2000, unit: "lb", targetWeightKg: null, currentWeightKg: null },
-    entries: {},   // { "YYYY-MM-DD": [ {id, name, brand, meal, grams, per100:{kcal,protein,carbs,fat}} ] }
-    weights: []    // [ {date:"YYYY-MM-DD", kg:Number} ]
+    settings: {
+      target: 2000, unit: "lb",
+      targetWeightKg: null, currentWeightKg: null,
+      waterGoalMl: 2000, theme: "meadow"
+    },
+    entries: {},   // { "YYYY-MM-DD": [ {id, name, brand, meal, grams, per100:{kcal,protein,carbs,fat,micros}} ] }
+    weights: [],   // [ {date:"YYYY-MM-DD", kg:Number} ]
+    water: {},     // { "YYYY-MM-DD": totalMl }
+    planner: { mealsPerDay: 3, ingredients: [] }
   };
 }
 
 function loadState() {
+  var base = defaultState();
   try {
     var raw = localStorage.getItem(LS_KEY);
-    if (!raw) return defaultState();
+    if (!raw) return base;
     var parsed = JSON.parse(raw);
-    var base = defaultState();
     base.settings = Object.assign(base.settings, parsed.settings || {});
     base.entries = parsed.entries || {};
     base.weights = Array.isArray(parsed.weights) ? parsed.weights : [];
+    base.water = parsed.water || {};
+    if (parsed.planner) base.planner = Object.assign(base.planner, parsed.planner);
     return base;
   } catch (e) {
-    return defaultState();
+    return base;
   }
 }
 
 var state = loadState();
-var selectedDate = todayStr();
+var selectedDate = todayStr();   // day shown in Log / Trends micronutrients
+var waterDate = todayStr();      // day shown in Water
+var trendsRange = 14;            // calorie chart range
+var calCursor = { y: new Date().getFullYear(), m: new Date().getMonth() };
 
 function saveState() {
   try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) { /* storage full or blocked */ }
@@ -65,35 +109,58 @@ function unitLabel() { return state.settings.unit === "kg" ? "kg" : "lb"; }
 function toDisplayWeight(kg) { return state.settings.unit === "kg" ? kg : kg * LB_PER_KG; }
 function fromDisplayWeight(v) { return state.settings.unit === "kg" ? v : v / LB_PER_KG; }
 
-function $(id) { return document.getElementById(id); }
-
-/* ---------- Nutrition scaling ---------- */
-function scaled(per100, grams) {
+/* ---------- Nutrition math ---------- */
+function scaledNutrients(per100, grams) {
   var f = grams / 100;
-  return {
-    kcal: per100.kcal * f,
-    protein: per100.protein * f,
-    carbs: per100.carbs * f,
-    fat: per100.fat * f
+  var out = {
+    kcal: num(per100.kcal) * f,
+    protein: num(per100.protein) * f,
+    carbs: num(per100.carbs) * f,
+    fat: num(per100.fat) * f,
+    micros: emptyMicros()
   };
+  var src = per100.micros || {};
+  MICROS.forEach(function (m) { out.micros[m.key] = num(src[m.key]) * f; });
+  return out;
 }
 
-function dayEntries() { return state.entries[selectedDate] || []; }
+function entriesFor(dateStr) { return state.entries[dateStr] || []; }
 
-function dayTotals() {
-  var t = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
-  dayEntries().forEach(function (it) {
-    var s = scaled(it.per100, it.grams);
+function totalsFor(dateStr) {
+  var t = { kcal: 0, protein: 0, carbs: 0, fat: 0, micros: emptyMicros() };
+  entriesFor(dateStr).forEach(function (it) {
+    var s = scaledNutrients(it.per100, it.grams);
     t.kcal += s.kcal; t.protein += s.protein; t.carbs += s.carbs; t.fat += s.fat;
+    MICROS.forEach(function (m) { t.micros[m.key] += s.micros[m.key]; });
   });
   return t;
 }
 
-/* ---------- Rendering: summary ---------- */
+function dayEntries() { return entriesFor(selectedDate); }
+function dayTotals() { return totalsFor(selectedDate); }
+
+/* ---------- Tabs ---------- */
+var currentTab = "home";
+function switchTab(name) {
+  currentTab = name;
+  document.querySelectorAll(".tab-btn").forEach(function (b) {
+    b.classList.toggle("active", b.getAttribute("data-tab") === name);
+  });
+  document.querySelectorAll(".tab-page").forEach(function (p) { p.hidden = true; });
+  var page = $("tab-" + name);
+  if (page) page.hidden = false;
+  if (name !== "workouts" && window.Workouts) window.Workouts.setActive(false);
+  if (name === "workouts" && window.Workouts) window.Workouts.setActive(true);
+  if (name !== "log") stopScan();
+  if (name !== "photos" && window.Photos) window.Photos.stopCamera();
+}
+
+/* ---------- Home: today ring, streak, average, calendar ---------- */
 var RING_C = 2 * Math.PI * 74;
 
-function renderSummary() {
-  var totals = dayTotals();
+function renderHome() {
+  var today = todayStr();
+  var totals = totalsFor(today);
   var target = state.settings.target || 2000;
   var remaining = target - totals.kcal;
   var frac = Math.max(0, Math.min(1, totals.kcal / target));
@@ -101,20 +168,18 @@ function renderSummary() {
   var fg = $("ring-fg");
   fg.style.strokeDasharray = RING_C.toFixed(1);
   fg.style.strokeDashoffset = (RING_C * (1 - frac)).toFixed(1);
-  fg.style.stroke = remaining < 0 ? "#b3392e" : "";
+  fg.style.stroke = remaining < 0 ? "var(--danger)" : "";
 
   $("ring-remaining").textContent = String(Math.round(Math.abs(remaining)));
   $("ring-remaining").parentElement.querySelector(".ring-label").textContent =
     remaining < 0 ? "kcal over target" : "kcal remaining";
   $("stat-target").textContent = String(target);
   $("stat-eaten").textContent = String(Math.round(totals.kcal));
-  $("stat-date-label").textContent = selectedDate === todayStr() ? "Today" : selectedDate;
-  $("stat-burned-note").textContent = dayEntries().length + (dayEntries().length === 1 ? " item" : " items");
+  $("home-items").textContent = entriesFor(today).length + (entriesFor(today).length === 1 ? " item" : " items");
 
   $("val-protein").textContent = round1(totals.protein) + " g";
   $("val-carbs").textContent = round1(totals.carbs) + " g";
   $("val-fat").textContent = round1(totals.fat) + " g";
-
   var pK = totals.protein * 4, cK = totals.carbs * 4, fK = totals.fat * 9;
   var mTotal = pK + cK + fK;
   function pct(x) { return mTotal > 0 ? Math.round((x / mTotal) * 100) : 0; }
@@ -122,11 +187,66 @@ function renderSummary() {
   $("bar-carbs").style.width = pct(cK) + "%";
   $("bar-fat").style.width = pct(fK) + "%";
 
+  // Streak: consecutive logged days ending today (or yesterday if today is empty so far)
+  var streak = 0;
+  var d = today;
+  if (!entriesFor(d).length) d = shiftDate(d, -1);
+  while (entriesFor(d).length) { streak++; d = shiftDate(d, -1); }
+  $("home-streak").textContent = streak + (streak === 1 ? " day" : " days");
+
+  // 7-day average over logged days in the last 7 days (including today)
+  var sum = 0, logged = 0;
+  for (var i = 0; i < 7; i++) {
+    var ds = shiftDate(today, -i);
+    if (entriesFor(ds).length) { sum += totalsFor(ds).kcal; logged++; }
+  }
+  $("home-avg7").textContent = logged ? Math.round(sum / logged) + " kcal" : "—";
+
+  renderCalendar();
+}
+
+var MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+function renderCalendar() {
+  var y = calCursor.y, m = calCursor.m;
+  $("cal-title").textContent = MONTH_NAMES[m] + " " + y;
+  var first = new Date(y, m, 1);
+  var startOffset = (first.getDay() + 6) % 7; // Monday-first
+  var daysInMonth = new Date(y, m + 1, 0).getDate();
+  var today = todayStr();
+  var html = "";
+  for (var i = 0; i < startOffset; i++) html += '<span class="cal-cell empty"></span>';
+  for (var day = 1; day <= daysInMonth; day++) {
+    var ds = y + "-" + String(m + 1).padStart(2, "0") + "-" + String(day).padStart(2, "0");
+    var entries = entriesFor(ds);
+    var kcal = entries.length ? Math.round(totalsFor(ds).kcal) : null;
+    var cls = "cal-cell" + (ds === today ? " today" : "") + (ds === selectedDate ? " selected" : "");
+    html += '<button type="button" class="' + cls + '" data-cal-day="' + ds + '">' +
+      '<span class="cal-daynum">' + day + "</span>" +
+      (kcal != null ? '<span class="cal-kcal">' + kcal + " kcal</span>" : '<span class="cal-kcal">&nbsp;</span>') +
+      "</button>";
+  }
+  $("cal-grid").innerHTML = html;
+  $("cal-grid").querySelectorAll("[data-cal-day]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      selectedDate = btn.getAttribute("data-cal-day");
+      renderAll();
+      switchTab("log");
+    });
+  });
+}
+
+/* ---------- Log tab ---------- */
+function renderLogSummary() {
+  var t = dayTotals();
+  $("log-day-summary").textContent =
+    prettyDate(selectedDate) + " — " + Math.round(t.kcal) + " kcal · Protein " + round1(t.protein) +
+    " g · Carbs " + round1(t.carbs) + " g · Fat " + round1(t.fat) + " g";
   $("day-picker").value = selectedDate;
 }
 
-/* ---------- Rendering: log ---------- */
 function renderLog() {
+  renderLogSummary();
   var list = $("log-list");
   var items = dayEntries();
   $("log-empty").style.display = items.length ? "none" : "block";
@@ -137,7 +257,7 @@ function renderLog() {
     var mealKcal = 0;
     var rows = "";
     mealItems.forEach(function (it) {
-      var s = scaled(it.per100, it.grams);
+      var s = scaledNutrients(it.per100, it.grams);
       mealKcal += s.kcal;
       rows += '<div class="log-item"><div>' +
         '<span class="log-name">' + esc(it.name) + "</span> " +
@@ -158,19 +278,36 @@ function renderLog() {
   });
 }
 
-function renderAll() { renderSummary(); renderLog(); renderWeight(); }
+/* ---------- Search: Open Food Facts ----------
+   OFF nutriments are per 100 g. Macros are in grams. Micronutrients in the
+   OFF nutriments object are also expressed in grams per 100 g, so:
+   g -> mg multiplies by 1,000 and g -> µg multiplies by 1,000,000. */
+function offMicros(n) {
+  var mi = emptyMicros();
+  if (!n) return mi;
+  mi.fiber = num(n["fiber_100g"]);
+  mi.iron = num(n["iron_100g"]) * 1000;
+  mi.calcium = num(n["calcium_100g"]) * 1000;
+  mi.vitA = num(n["vitamin-a_100g"]) * 1000000;
+  mi.vitC = num(n["vitamin-c_100g"]) * 1000;
+  mi.vitD = num(n["vitamin-d_100g"]) * 1000000;
+  mi.b12 = num(n["vitamin-b12_100g"]) * 1000000; // B12 is its own field — never vitamin-b6
+  mi.folate = num(n["vitamin-b9_100g"]) * 1000000; // folate = vitamin B9
+  mi.potassium = num(n["potassium_100g"]) * 1000;
+  return mi;
+}
 
-/* ---------- Search: Open Food Facts ---------- */
 function offNutrients(n) {
   if (!n) return null;
   var kcal = n["energy-kcal_100g"];
   if (kcal == null && n["energy_100g"] != null) kcal = n["energy_100g"] / 4.184; // kJ to kcal
   if (kcal == null) return null;
   return {
-    kcal: Number(kcal) || 0,
-    protein: Number(n["proteins_100g"]) || 0,
-    carbs: Number(n["carbohydrates_100g"]) || 0,
-    fat: Number(n["fat_100g"]) || 0
+    kcal: num(kcal),
+    protein: num(n["proteins_100g"]),
+    carbs: num(n["carbohydrates_100g"]),
+    fat: num(n["fat_100g"]),
+    micros: offMicros(n)
   };
 }
 
@@ -188,7 +325,11 @@ function searchOFF(query) {
   });
 }
 
-/* ---------- Search: USDA FoodData Central (DEMO_KEY, rate-limited) ---------- */
+/* ---------- Search: USDA FoodData Central (DEMO_KEY, rate-limited) ----------
+   USDA nutrient IDs: 203 protein, 204 fat, 205 carbs, 208/957/958 energy,
+   291 fiber, 301 calcium, 303 iron, 306 potassium, 320 vitamin A (RAE, µg),
+   401 vitamin C (mg), 328 vitamin D (µg), 417 folate (µg), 418 vitamin B-12 (µg).
+   Note: 415 is vitamin B-6 — it is NOT B12 and is deliberately not used. */
 function searchUSDA(query) {
   var url = "https://api.nal.usda.gov/fdc/v1/foods/search?api_key=DEMO_KEY&pageSize=8&query=" + encodeURIComponent(query);
   return fetch(url).then(function (r) {
@@ -197,12 +338,24 @@ function searchUSDA(query) {
   }).then(function (data) {
     var out = [];
     (data.foods || []).forEach(function (f) {
-      var per100 = { kcal: null, protein: 0, carbs: 0, fat: 0 };
+      var per100 = { kcal: null, protein: 0, carbs: 0, fat: 0, micros: emptyMicros() };
       (f.foodNutrients || []).forEach(function (n) {
-        if (n.nutrientId === 208 || n.nutrientId === 957 || n.nutrientId === 958) per100.kcal = n.value;
-        if (n.nutrientId === 203) per100.protein = n.value || 0;
-        if (n.nutrientId === 204) per100.fat = n.value || 0;
-        if (n.nutrientId === 205) per100.carbs = n.value || 0;
+        var v = num(n.value);
+        switch (n.nutrientId) {
+          case 208: case 957: case 958: per100.kcal = v; break;
+          case 203: per100.protein = v; break;
+          case 204: per100.fat = v; break;
+          case 205: per100.carbs = v; break;
+          case 291: per100.micros.fiber = v; break;
+          case 301: per100.micros.calcium = v; break;
+          case 303: per100.micros.iron = v; break;
+          case 306: per100.micros.potassium = v; break;
+          case 320: per100.micros.vitA = v; break;
+          case 401: per100.micros.vitC = v; break;
+          case 328: per100.micros.vitD = v; break;
+          case 417: per100.micros.folate = v; break;
+          case 418: per100.micros.b12 = v; break;
+        }
       });
       if (per100.kcal == null || !f.description) return;
       out.push({ name: f.description, brand: f.brandName || "USDA generic", source: "USDA", per100: per100 });
@@ -213,10 +366,7 @@ function searchUSDA(query) {
 
 function renderResults(results) {
   var ul = $("search-results");
-  if (!results.length) {
-    ul.innerHTML = "";
-    return;
-  }
+  if (!results.length) { ul.innerHTML = ""; return; }
   ul.innerHTML = results.map(function (r, idx) {
     return '<li class="result"><div class="result-main">' +
       '<span class="result-name">' + esc(r.name) + "</span> " +
@@ -252,7 +402,193 @@ function addEntry(food, grams) {
   $("search-status").className = "status";
 }
 
-/* ---------- Weight ---------- */
+function lookupBarcode(code) {
+  var status = $("barcode-status");
+  status.textContent = "Looking up barcode " + code + "…";
+  status.className = "status";
+  fetch("https://world.openfoodfacts.org/api/v2/product/" + encodeURIComponent(code) + ".json")
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (data.status !== 1 || !data.product) {
+        status.textContent = "No product found for that barcode in Open Food Facts.";
+        status.className = "status error";
+        return;
+      }
+      var per100 = offNutrients(data.product.nutriments);
+      if (!per100) {
+        status.textContent = "Product found, but it has no nutrition data in Open Food Facts.";
+        status.className = "status error";
+        return;
+      }
+      renderResults([{ name: data.product.product_name || ("Barcode " + code), brand: data.product.brands || "", source: "Open Food Facts", per100: per100 }]);
+      status.textContent = "Found it. Set grams in the result above, then Add.";
+    })
+    .catch(function () {
+      status.textContent = "Barcode lookup failed (network or service error). Please try again.";
+      status.className = "status error";
+    });
+}
+
+/* ---------- Camera barcode scanning (BarcodeDetector where supported) ---------- */
+var scanStream = null;
+var scanTimer = null;
+
+function stopScan() {
+  if (scanTimer) { clearInterval(scanTimer); scanTimer = null; }
+  if (scanStream) { scanStream.getTracks().forEach(function (t) { t.stop(); }); scanStream = null; }
+  var box = $("scan-box");
+  if (box) box.hidden = true;
+}
+
+function startScan() {
+  var status = $("barcode-status");
+  if (!("BarcodeDetector" in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    status.textContent = "Camera barcode scanning is not supported in this browser — the typed barcode lookup above works everywhere.";
+    status.className = "status error";
+    return;
+  }
+  var detector;
+  try { detector = new window.BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128"] }); }
+  catch (e) { detector = new window.BarcodeDetector(); }
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+    .then(function (stream) {
+      scanStream = stream;
+      $("scan-box").hidden = false;
+      var video = $("scan-video");
+      video.srcObject = stream;
+      return video.play();
+    })
+    .then(function () {
+      var video = $("scan-video");
+      scanTimer = setInterval(function () {
+        if (!scanStream) return;
+        detector.detect(video).then(function (codes) {
+          if (codes && codes.length) {
+            var raw = String(codes[0].rawValue || "").replace(/\D/g, "");
+            stopScan();
+            if (raw) {
+              $("barcode-input").value = raw;
+              lookupBarcode(raw);
+            }
+          }
+        }).catch(function () { /* keep trying */ });
+      }, 450);
+    })
+    .catch(function () {
+      status.textContent = "Could not start the camera (permission denied or no camera). The typed barcode lookup works everywhere.";
+      status.className = "status error";
+      stopScan();
+    });
+}
+
+/* ---------- Trends: charts ---------- */
+function lastNDays(n) {
+  var days = [];
+  var today = todayStr();
+  for (var i = n - 1; i >= 0; i--) days.push(shiftDate(today, -i));
+  return days;
+}
+
+function shortDate(ds) {
+  var p = ds.split("-").map(Number);
+  return (p[1]) + "/" + (p[2]);
+}
+
+function renderCalChart() {
+  var box = $("cal-chart");
+  var days = lastNDays(trendsRange);
+  var target = state.settings.target || 2000;
+  var totals = days.map(function (ds) { return totalsFor(ds).kcal; });
+  var max = Math.max(target, Math.max.apply(null, totals)) * 1.12;
+  if (max <= 0) max = target;
+  var W = 700, H = 230, padL = 44, padR = 10, padT = 14, padB = 28;
+  var iw = W - padL - padR, ih = H - padT - padB;
+  var bw = iw / days.length;
+  function Y(v) { return padT + (1 - v / max) * ih; }
+  var svg = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Calorie history chart">';
+  svg += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (H - padB) + '" stroke="var(--line)"/>';
+  svg += '<line x1="' + padL + '" y1="' + (H - padB) + '" x2="' + (W - padR) + '" y2="' + (H - padB) + '" stroke="var(--line)"/>';
+  svg += '<text x="4" y="' + (Y(max / 1.12) + 4) + '" font-size="11" fill="var(--muted)">' + Math.round(max / 1.12) + "</text>";
+  var ty = Y(target);
+  svg += '<line x1="' + padL + '" y1="' + ty + '" x2="' + (W - padR) + '" y2="' + ty + '" stroke="var(--danger)" stroke-dasharray="5 4"/>';
+  svg += '<text x="' + (W - padR - 40) + '" y="' + (ty - 5) + '" font-size="11" fill="var(--danger)">target</text>';
+  var labelEvery = trendsRange > 14 ? 5 : 2;
+  days.forEach(function (ds, i) {
+    var v = totals[i];
+    var x = padL + i * bw;
+    var h = Math.max(0, (v / max) * ih);
+    var color = v > target ? "var(--danger)" : "var(--accent)";
+    svg += '<rect x="' + (x + 1.5).toFixed(1) + '" y="' + (H - padB - h).toFixed(1) + '" width="' + Math.max(1, bw - 3).toFixed(1) +
+      '" height="' + h.toFixed(1) + '" fill="' + color + '" rx="2"><title>' + ds + ": " + Math.round(v) + " kcal</title></rect>";
+    if (i % labelEvery === 0 || i === days.length - 1) {
+      svg += '<text x="' + (x + bw / 2).toFixed(1) + '" y="' + (H - 8) + '" font-size="10" fill="var(--muted)" text-anchor="middle">' + shortDate(ds) + "</text>";
+    }
+  });
+  svg += "</svg>";
+  box.innerHTML = svg;
+}
+
+function renderMacroChart() {
+  var box = $("macro-chart");
+  var days = lastNDays(14);
+  var series = days.map(function (ds) {
+    var t = totalsFor(ds);
+    return { p: t.protein, c: t.carbs, f: t.fat };
+  });
+  var max = 0;
+  series.forEach(function (s) { max = Math.max(max, s.p, s.c, s.f); });
+  var W = 700, H = 210, padL = 40, padR = 10, padT = 12, padB = 26;
+  var iw = W - padL - padR, ih = H - padT - padB;
+  if (max <= 0) {
+    box.innerHTML = '<p class="hint">No foods logged in the last 14 days yet.</p>';
+    return;
+  }
+  function Y(v) { return padT + (1 - v / max) * ih; }
+  var groupW = iw / days.length;
+  var bw = Math.max(1.5, (groupW - 4) / 3);
+  var svg = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Macro history chart">';
+  svg += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (H - padB) + '" stroke="var(--line)"/>';
+  svg += '<line x1="' + padL + '" y1="' + (H - padB) + '" x2="' + (W - padR) + '" y2="' + (H - padB) + '" stroke="var(--line)"/>';
+  svg += '<text x="4" y="' + (Y(max) + 4) + '" font-size="11" fill="var(--muted)">' + Math.round(max) + " g</text>";
+  var keys = [["p", "var(--protein)"], ["c", "var(--carbs)"], ["f", "var(--fat)"]];
+  days.forEach(function (ds, i) {
+    var gx = padL + i * groupW + 2;
+    keys.forEach(function (k, j) {
+      var v = series[i][k[0]];
+      var h = (v / max) * ih;
+      svg += '<rect x="' + (gx + j * bw).toFixed(1) + '" y="' + (H - padB - h).toFixed(1) + '" width="' + bw.toFixed(1) +
+        '" height="' + h.toFixed(1) + '" fill="' + k[1] + '"><title>' + ds + ": " + Math.round(v) + " g</title></rect>";
+    });
+    if (i % 2 === 0 || i === days.length - 1) {
+      svg += '<text x="' + (gx + groupW / 2 - 2).toFixed(1) + '" y="' + (H - 6) + '" font-size="10" fill="var(--muted)" text-anchor="middle">' + shortDate(ds) + "</text>";
+    }
+  });
+  svg += "</svg>";
+  box.innerHTML = svg;
+}
+
+function renderMicros() {
+  $("micro-date").value = selectedDate;
+  var t = totalsFor(selectedDate);
+  var html = MICROS.map(function (m) {
+    var v = t.micros[m.key];
+    var pctv = Math.max(0, Math.min(100, (v / m.target) * 100));
+    var shown = v >= 100 ? Math.round(v) : round1(v);
+    return '<div class="micro"><span class="micro-name">' + m.name + '</span>' +
+      '<div class="bar"><div class="bar-fill" style="width:' + pctv.toFixed(1) + '%"></div></div>' +
+      '<span class="micro-val">' + shown + " / " + m.target + " " + m.unit + " · " + Math.round(pctv) + "%</span></div>";
+  }).join("");
+  $("micro-list").innerHTML = html;
+}
+
+function renderTrends() {
+  renderCalChart();
+  renderMacroChart();
+  renderMicros();
+  renderWeight();
+}
+
+/* ---------- Weight (in Trends tab) ---------- */
 function sortedWeights() {
   return state.weights.slice().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
 }
@@ -270,7 +606,6 @@ function renderWeight() {
     ? round1(Math.abs(toDisplayWeight(currentKg) - toDisplayWeight(targetKg))) + " " + unit : "—";
   $("weight-unit-label").textContent = unit;
 
-  // Chart
   var box = $("weight-chart");
   if (ws.length < 2) {
     box.innerHTML = '<p class="hint">' + (ws.length === 1
@@ -288,26 +623,25 @@ function renderWeight() {
     function Y(v) { return padT + (1 - (v - min) / (max - min)) * (H - padT - padB); }
     var pts = ws.map(function (w) { return X(w.date).toFixed(1) + "," + Y(toDisplayWeight(w.kg)).toFixed(1); }).join(" ");
     var svg = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Weight trend chart">';
-    svg += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (H - padB) + '" stroke="#e2e7ee"/>';
-    svg += '<line x1="' + padL + '" y1="' + (H - padB) + '" x2="' + (W - padR) + '" y2="' + (H - padB) + '" stroke="#e2e7ee"/>';
-    svg += '<text x="6" y="' + (Y(max) + 4) + '" font-size="11" fill="#5c6a7a">' + round1(max) + "</text>";
-    svg += '<text x="6" y="' + (Y(min) + 4) + '" font-size="11" fill="#5c6a7a">' + round1(min) + "</text>";
+    svg += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (H - padB) + '" stroke="var(--line)"/>';
+    svg += '<line x1="' + padL + '" y1="' + (H - padB) + '" x2="' + (W - padR) + '" y2="' + (H - padB) + '" stroke="var(--line)"/>';
+    svg += '<text x="6" y="' + (Y(max) + 4) + '" font-size="11" fill="var(--muted)">' + round1(max) + "</text>";
+    svg += '<text x="6" y="' + (Y(min) + 4) + '" font-size="11" fill="var(--muted)">' + round1(min) + "</text>";
     if (targetKg != null) {
       var ty = Y(toDisplayWeight(targetKg));
-      svg += '<line x1="' + padL + '" y1="' + ty + '" x2="' + (W - padR) + '" y2="' + ty + '" stroke="#2e7d4f" stroke-dasharray="5 4"/>' +
-        '<text x="' + (W - padR - 64) + '" y="' + (ty - 5) + '" font-size="11" fill="#256b42">target</text>';
+      svg += '<line x1="' + padL + '" y1="' + ty + '" x2="' + (W - padR) + '" y2="' + ty + '" stroke="var(--accent)" stroke-dasharray="5 4"/>' +
+        '<text x="' + (W - padR - 64) + '" y="' + (ty - 5) + '" font-size="11" fill="var(--accent)">target</text>';
     }
-    svg += '<polyline points="' + pts + '" fill="none" stroke="#3a7bd5" stroke-width="2.5"/>';
+    svg += '<polyline points="' + pts + '" fill="none" stroke="var(--protein)" stroke-width="2.5"/>';
     ws.forEach(function (w) {
-      svg += '<circle cx="' + X(w.date).toFixed(1) + '" cy="' + Y(toDisplayWeight(w.kg)).toFixed(1) + '" r="3.5" fill="#3a7bd5"/>';
+      svg += '<circle cx="' + X(w.date).toFixed(1) + '" cy="' + Y(toDisplayWeight(w.kg)).toFixed(1) + '" r="3.5" fill="var(--protein)"/>';
     });
-    svg += '<text x="' + padL + '" y="' + (H - 6) + '" font-size="11" fill="#5c6a7a">' + esc(ws[0].date) + "</text>";
-    svg += '<text x="' + (W - padR - 74) + '" y="' + (H - 6) + '" font-size="11" fill="#5c6a7a">' + esc(ws[ws.length - 1].date) + "</text>";
+    svg += '<text x="' + padL + '" y="' + (H - 6) + '" font-size="11" fill="var(--muted)">' + esc(ws[0].date) + "</text>";
+    svg += '<text x="' + (W - padR - 74) + '" y="' + (H - 6) + '" font-size="11" fill="var(--muted)">' + esc(ws[ws.length - 1].date) + "</text>";
     svg += "</svg>";
     box.innerHTML = svg;
   }
 
-  // List (newest first)
   $("weight-list").innerHTML = ws.slice().reverse().map(function (w) {
     return "<li><span>" + esc(w.date) + "</span><span>" + round1(toDisplayWeight(w.kg)) + " " + unit +
       ' <button type="button" class="log-remove" data-wremove="' + esc(w.date) + '" aria-label="Remove weigh-in on ' + esc(w.date) + '">&times;</button></span></li>';
@@ -321,7 +655,155 @@ function renderWeight() {
   });
 }
 
-/* ---------- Settings ---------- */
+/* ---------- Water ---------- */
+function renderWater() {
+  var ml = num(state.water[waterDate]);
+  var goal = state.settings.waterGoalMl || 2000;
+  $("water-picker").value = waterDate;
+  $("water-amount").textContent = Math.round(ml) + " ml";
+  $("water-sub").textContent = round1(ml / ML_PER_OZ) + " fl oz · goal " + goal + " ml · " + prettyDate(waterDate);
+  var pctv = Math.max(0, Math.min(100, (ml / goal) * 100));
+  $("water-bar").style.width = pctv.toFixed(1) + "%";
+  $("water-pct").textContent = Math.round(pctv) + "% of daily goal";
+  $("water-goal").value = goal;
+}
+
+function addWater(ml) {
+  state.water[waterDate] = num(state.water[waterDate]) + ml;
+  saveState(); renderWater();
+}
+
+/* ---------- Meal planner ---------- */
+var MEAL_SPLITS = {
+  3: [["Breakfast", 30], ["Lunch", 35], ["Dinner", 35]],
+  4: [["Breakfast", 25], ["Lunch", 35], ["Dinner", 30], ["Snack", 10]],
+  5: [["Breakfast", 20], ["Morning snack", 10], ["Lunch", 30], ["Afternoon snack", 10], ["Dinner", 30]],
+  6: [["Breakfast", 20], ["Morning snack", 10], ["Lunch", 25], ["Afternoon snack", 10], ["Dinner", 25], ["Evening snack", 10]],
+  7: [["Breakfast", 18], ["Morning snack", 9], ["Lunch", 24], ["Afternoon snack", 9], ["Pre-workout snack", 8], ["Dinner", 24], ["Evening snack", 8]]
+};
+
+var RECIPES = [
+  { name: "Overnight Oats", kcal: 420, protein: 16, meals: ["breakfast"], ingredients: ["rolled oats", "milk", "greek yogurt", "honey", "chia seeds", "banana"] },
+  { name: "Greek Yogurt Parfait", kcal: 380, protein: 24, meals: ["breakfast", "snack"], ingredients: ["greek yogurt", "granola", "mixed berries", "honey"] },
+  { name: "Egg & Veggie Scramble", kcal: 450, protein: 27, meals: ["breakfast", "lunch"], ingredients: ["eggs", "spinach", "bell pepper", "onion", "cheese", "olive oil"] },
+  { name: "Protein Smoothie", kcal: 350, protein: 30, meals: ["breakfast", "snack"], ingredients: ["protein powder", "banana", "milk", "peanut butter", "spinach"] },
+  { name: "Cottage Cheese & Fruit Bowl", kcal: 320, protein: 26, meals: ["snack", "breakfast"], ingredients: ["cottage cheese", "pineapple", "walnuts"] },
+  { name: "Chicken Rice Bowl", kcal: 650, protein: 48, meals: ["lunch", "dinner"], ingredients: ["chicken breast", "rice", "broccoli", "soy sauce", "garlic", "olive oil"] },
+  { name: "Tuna Salad Wrap", kcal: 520, protein: 38, meals: ["lunch"], ingredients: ["canned tuna", "tortilla wrap", "mayonnaise", "celery", "lettuce", "lemon"] },
+  { name: "Turkey Chili", kcal: 580, protein: 42, meals: ["lunch", "dinner"], ingredients: ["ground turkey", "kidney beans", "crushed tomatoes", "onion", "chili powder", "garlic"] },
+  { name: "Salmon & Quinoa", kcal: 620, protein: 44, meals: ["dinner"], ingredients: ["salmon fillet", "quinoa", "asparagus", "lemon", "olive oil", "garlic"] },
+  { name: "Pasta Primavera", kcal: 560, protein: 19, meals: ["lunch", "dinner"], ingredients: ["pasta", "zucchini", "bell pepper", "cherry tomatoes", "parmesan", "olive oil"] },
+  { name: "Lentil Soup", kcal: 480, protein: 22, meals: ["lunch", "dinner"], ingredients: ["lentils", "carrots", "onion", "celery", "vegetable stock", "cumin"] },
+  { name: "Beef Stir-Fry", kcal: 600, protein: 45, meals: ["dinner"], ingredients: ["beef strips", "bell pepper", "broccoli", "soy sauce", "ginger", "rice"] },
+  { name: "Veggie Fried Rice", kcal: 540, protein: 15, meals: ["lunch", "dinner"], ingredients: ["rice", "eggs", "peas", "carrots", "soy sauce", "spring onion"] },
+  { name: "Bean Burrito Bowl", kcal: 590, protein: 21, meals: ["lunch", "dinner"], ingredients: ["black beans", "rice", "corn", "avocado", "salsa", "lime"] }
+];
+
+function splitForMeals() {
+  return MEAL_SPLITS[state.planner.mealsPerDay] || MEAL_SPLITS[3];
+}
+
+function renderPlanner() {
+  var target = state.settings.target || 2000;
+  $("plan-target-note").textContent =
+    "Splitting your daily target of " + target + " kcal across " + state.planner.mealsPerDay +
+    " eating occasions. Percentages are a starting guide — shift them to match your hunger and schedule.";
+  $("plan-meals").value = String(state.planner.mealsPerDay);
+  $("plan-split").innerHTML = splitForMeals().map(function (row) {
+    return '<div class="plan-row"><span>' + esc(row[0]) + " · " + row[1] + '%</span>' +
+      '<span class="plan-kcal">' + Math.round(target * row[1] / 100) + " kcal</span></div>";
+  }).join("");
+  $("plan-ingredients").value = (state.planner.ingredients || []).join(", ");
+  renderRecipeMatches();
+}
+
+function normalizeIng(s) { return String(s).toLowerCase().trim(); }
+
+function renderRecipeMatches() {
+  var have = (state.planner.ingredients || []).map(normalizeIng).filter(Boolean);
+  var box = $("plan-recipes");
+  if (!have.length) {
+    box.innerHTML = '<p class="hint">No ingredients saved yet. Add what you have above, or use the generator below if the kitchen is empty.</p>';
+    return;
+  }
+  var scored = RECIPES.map(function (r) {
+    var haveIngs = [], missing = [];
+    r.ingredients.forEach(function (ing) {
+      var key = normalizeIng(ing);
+      var found = have.some(function (h) { return h.indexOf(key) !== -1 || key.indexOf(h) !== -1; });
+      (found ? haveIngs : missing).push(ing);
+    });
+    return { recipe: r, haveIngs: haveIngs, missing: missing, score: haveIngs.length / r.ingredients.length };
+  }).filter(function (s) { return s.haveIngs.length > 0; })
+    .sort(function (a, b) { return b.score - a.score; });
+  if (!scored.length) {
+    box.innerHTML = '<p class="hint">None of the built-in recipes use those ingredients. Try adding staples like eggs, rice, chicken breast, beans, or yogurt.</p>';
+    return;
+  }
+  box.innerHTML = scored.map(function (s) {
+    return '<div class="recipe"><h3>' + esc(s.recipe.name) + "</h3>" +
+      '<div class="recipe-meta">' + s.recipe.kcal + " kcal · " + s.recipe.protein + " g protein · you have " +
+      s.haveIngs.length + " of " + s.recipe.ingredients.length + " ingredients</div>" +
+      '<div class="have">Have: ' + s.haveIngs.map(esc).join(", ") + "</div>" +
+      (s.missing.length ? '<div class="missing">Still need: ' + s.missing.map(esc).join(", ") + "</div>" : '<div class="have">You have everything for this one.</div>') +
+      "</div>";
+  }).join("");
+}
+
+function slotType(mealName) {
+  var n = mealName.toLowerCase();
+  if (n.indexOf("breakfast") !== -1) return "breakfast";
+  if (n.indexOf("lunch") !== -1) return "lunch";
+  if (n.indexOf("dinner") !== -1) return "dinner";
+  return "snack";
+}
+
+function generatePlan() {
+  var target = state.settings.target || 2000;
+  var split = splitForMeals();
+  var seed = Math.floor(Date.now() / 86400000); // rotates daily
+  var used = {};
+  var picks = split.map(function (row, slotIdx) {
+    var slotKcal = target * row[1] / 100;
+    var type = slotType(row[0]);
+    var candidates = RECIPES.filter(function (r) { return r.meals.indexOf(type) !== -1; });
+    if (!candidates.length) candidates = RECIPES.slice();
+    candidates.sort(function (a, b) {
+      var da = Math.abs(a.kcal - slotKcal) + (used[a.name] ? 400 : 0);
+      var db = Math.abs(b.kcal - slotKcal) + (used[b.name] ? 400 : 0);
+      return da - db;
+    });
+    var pick = candidates[(seed + slotIdx) % Math.min(2, candidates.length)];
+    used[pick.name] = true;
+    return { meal: row[0], pct: row[1], slotKcal: Math.round(slotKcal), recipe: pick };
+  });
+  var totalKcal = picks.reduce(function (s, p) { return s + p.recipe.kcal; }, 0);
+  var shop = {};
+  picks.forEach(function (p) {
+    p.recipe.ingredients.forEach(function (ing) { shop[ing] = (shop[ing] || 0) + 1; });
+  });
+  var html = picks.map(function (p) {
+    return '<div class="recipe"><h3>' + esc(p.meal) + " — " + esc(p.recipe.name) + "</h3>" +
+      '<div class="recipe-meta">Slot target ~' + p.slotKcal + " kcal · recipe " + p.recipe.kcal + " kcal · " +
+      p.recipe.protein + " g protein</div>" +
+      "<div>Ingredients: " + p.recipe.ingredients.map(esc).join(", ") + "</div></div>";
+  }).join("");
+  html += '<div class="recipe"><h3>Day total</h3><div class="recipe-meta">Recipes add up to about ' + totalKcal +
+    " kcal against your " + target + " kcal target. Swap a snack or adjust portions to close the gap.</div></div>";
+  html += '<div class="recipe"><h3>Shopping list</h3><ul class="shop-list">' +
+    Object.keys(shop).sort().map(function (ing) {
+      return "<li>" + esc(ing) + (shop[ing] > 1 ? " (×" + shop[ing] + ")" : "") + "</li>";
+    }).join("") + "</ul></div>";
+  $("plan-output").innerHTML = html;
+}
+
+/* ---------- Settings & theme ---------- */
+function applyTheme() {
+  var theme = state.settings.theme || "meadow";
+  document.documentElement.setAttribute("data-theme", theme);
+  $("theme-select").value = theme;
+}
+
 function renderSettings() {
   $("set-target").value = state.settings.target;
   $("set-unit").value = state.settings.unit;
@@ -330,13 +812,41 @@ function renderSettings() {
   document.querySelectorAll(".set-unit-name").forEach(function (el) { el.textContent = unitLabel(); });
 }
 
+/* ---------- Render everything ---------- */
+function renderAll() {
+  renderHome();
+  renderLog();
+  renderTrends();
+  renderWater();
+  renderPlanner();
+}
+
 /* ---------- Events ---------- */
 function init() {
   $("day-picker").value = selectedDate;
   $("weight-date").value = todayStr();
+  applyTheme();
   renderSettings();
   renderAll();
 
+  document.querySelectorAll(".tab-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () { switchTab(btn.getAttribute("data-tab")); });
+  });
+
+  $("theme-select").addEventListener("change", function () {
+    state.settings.theme = this.value;
+    saveState(); applyTheme();
+  });
+
+  // Home calendar
+  $("cal-prev").addEventListener("click", function () {
+    calCursor.m--; if (calCursor.m < 0) { calCursor.m = 11; calCursor.y--; } renderCalendar();
+  });
+  $("cal-next").addEventListener("click", function () {
+    calCursor.m++; if (calCursor.m > 11) { calCursor.m = 0; calCursor.y++; } renderCalendar();
+  });
+
+  // Log day navigation
   $("day-picker").addEventListener("change", function () {
     if (this.value) { selectedDate = this.value; renderAll(); }
   });
@@ -344,6 +854,21 @@ function init() {
   $("day-next").addEventListener("click", function () { selectedDate = shiftDate(selectedDate, 1); renderAll(); });
   $("day-today").addEventListener("click", function () { selectedDate = todayStr(); renderAll(); });
 
+  // Trends controls
+  document.querySelectorAll("[data-range]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      trendsRange = Number(btn.getAttribute("data-range")) || 14;
+      document.querySelectorAll("[data-range]").forEach(function (b) {
+        b.classList.toggle("active", b === btn);
+      });
+      renderCalChart();
+    });
+  });
+  $("micro-date").addEventListener("change", function () {
+    if (this.value) { selectedDate = this.value; renderAll(); }
+  });
+
+  // Search
   $("search-form").addEventListener("submit", function (e) {
     e.preventDefault();
     var q = $("search-input").value.trim();
@@ -366,36 +891,21 @@ function init() {
     });
   });
 
+  // Barcode: typed + camera
   $("barcode-form").addEventListener("submit", function (e) {
     e.preventDefault();
     var code = $("barcode-input").value.replace(/\D/g, "");
-    var status = $("barcode-status");
-    if (!code) { status.textContent = "Enter a barcode number first."; status.className = "status error"; return; }
-    status.textContent = "Looking up barcode " + code + "…";
-    status.className = "status";
-    fetch("https://world.openfoodfacts.org/api/v2/product/" + encodeURIComponent(code) + ".json")
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        if (data.status !== 1 || !data.product) {
-          status.textContent = "No product found for that barcode in Open Food Facts.";
-          status.className = "status error";
-          return;
-        }
-        var per100 = offNutrients(data.product.nutriments);
-        if (!per100) {
-          status.textContent = "Product found, but it has no nutrition data in Open Food Facts.";
-          status.className = "status error";
-          return;
-        }
-        renderResults([{ name: data.product.product_name || ("Barcode " + code), brand: data.product.brands || "", source: "Open Food Facts", per100: per100 }]);
-        status.textContent = "Found it. Set grams in the result above, then Add.";
-      })
-      .catch(function () {
-        status.textContent = "Barcode lookup failed (network or service error). Please try again.";
-        status.className = "status error";
-      });
+    if (!code) {
+      $("barcode-status").textContent = "Enter a barcode number first.";
+      $("barcode-status").className = "status error";
+      return;
+    }
+    lookupBarcode(code);
   });
+  $("scan-btn").addEventListener("click", startScan);
+  $("scan-stop").addEventListener("click", stopScan);
 
+  // Weight
   $("weight-form").addEventListener("submit", function (e) {
     e.preventDefault();
     var date = $("weight-date").value;
@@ -409,6 +919,49 @@ function init() {
     $("weight-value").value = "";
   });
 
+  // Water
+  $("water-picker").addEventListener("change", function () { if (this.value) { waterDate = this.value; renderWater(); } });
+  $("water-prev").addEventListener("click", function () { waterDate = shiftDate(waterDate, -1); renderWater(); });
+  $("water-next").addEventListener("click", function () { waterDate = shiftDate(waterDate, 1); renderWater(); });
+  $("water-today").addEventListener("click", function () { waterDate = todayStr(); renderWater(); });
+  document.querySelectorAll("[data-water-add]").forEach(function (btn) {
+    btn.addEventListener("click", function () { addWater(Number(btn.getAttribute("data-water-add"))); });
+  });
+  $("water-custom-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var v = Number($("water-custom").value);
+    if (!(v > 0)) return;
+    if ($("water-custom-unit").value === "oz") v = v * ML_PER_OZ;
+    addWater(Math.round(v));
+    $("water-custom").value = "";
+  });
+  $("water-reset").addEventListener("click", function () {
+    state.water[waterDate] = 0;
+    saveState(); renderWater();
+  });
+  $("water-goal-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var g = Number($("water-goal").value);
+    if (g >= 100 && g <= 10000) {
+      state.settings.waterGoalMl = Math.round(g);
+      saveState(); renderWater();
+      $("water-status").textContent = "Daily water goal saved: " + state.settings.waterGoalMl + " ml.";
+    }
+  });
+
+  // Planner
+  $("plan-meals").addEventListener("change", function () {
+    state.planner.mealsPerDay = Number(this.value) || 3;
+    saveState(); renderPlanner();
+  });
+  $("plan-save-ingredients").addEventListener("click", function () {
+    state.planner.ingredients = $("plan-ingredients").value
+      .split(/[,\n]/).map(function (s) { return s.trim(); }).filter(Boolean);
+    saveState(); renderRecipeMatches();
+  });
+  $("plan-generate").addEventListener("click", generatePlan);
+
+  // Settings
   $("settings-form").addEventListener("submit", function (e) {
     e.preventDefault();
     var target = Number($("set-target").value);
@@ -425,12 +978,15 @@ function init() {
       state.weights.push({ date: t, kg: kg });
     }
     saveState(); renderSettings(); renderAll();
+    $("settings-status").textContent = "Settings saved.";
   });
 
   $("clear-data").addEventListener("click", function () {
-    if (!window.confirm("Erase all saved food logs, weigh-ins, and settings stored in this browser?")) return;
+    if (!window.confirm("Erase all saved food logs, weigh-ins, water, plans, and settings stored in this browser? (Progress photos are erased separately from the Photo Diary tab.)")) return;
     state = defaultState();
-    saveState(); renderSettings(); renderAll();
+    selectedDate = todayStr();
+    waterDate = todayStr();
+    saveState(); applyTheme(); renderSettings(); renderAll();
     $("search-results").innerHTML = "";
     $("search-status").textContent = "All saved data on this device has been erased.";
   });

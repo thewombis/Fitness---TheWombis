@@ -1,136 +1,386 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="meadow">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Calorie Counter — Test Build</title>
+<title>Calorie Counter</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <header class="site-header">
-  <div class="wrap">
-    <h1>Calorie Counter</h1>
-    <p class="tagline">Search real food databases, log your day, track your weight.</p>
+  <div class="wrap header-flex">
+    <div>
+      <h1>Calorie Counter</h1>
+      <p class="tagline">Search real food databases, log your day, track your progress.</p>
+    </div>
+    <label class="theme-picker">Theme
+      <select id="theme-select" aria-label="Color theme">
+        <option value="meadow">Meadow</option>
+        <option value="ocean">Ocean</option>
+        <option value="sunset">Sunset</option>
+        <option value="berry">Berry</option>
+        <option value="slate">Slate</option>
+        <option value="midnight">Midnight</option>
+      </select>
+    </label>
   </div>
 </header>
 
+<nav class="tab-nav" aria-label="Main">
+  <div class="wrap tab-nav-inner">
+    <button type="button" class="tab-btn active" data-tab="home">Home</button>
+    <button type="button" class="tab-btn" data-tab="log">Log</button>
+    <button type="button" class="tab-btn" data-tab="trends">Trends</button>
+    <button type="button" class="tab-btn" data-tab="water">Water</button>
+    <button type="button" class="tab-btn" data-tab="workouts">Workouts</button>
+    <button type="button" class="tab-btn" data-tab="planner">Meal Planner</button>
+    <button type="button" class="tab-btn" data-tab="photos">Photo Diary</button>
+    <button type="button" class="tab-btn" data-tab="settings">Settings</button>
+  </div>
+</nav>
+
 <main class="wrap">
 
-  <!-- Daily summary -->
-  <section class="card" id="summary-card">
-    <div class="summary-flex">
-      <div class="ring-box">
-        <svg id="ring" width="170" height="170" viewBox="0 0 170 170" role="img" aria-label="Calories remaining today">
-          <circle cx="85" cy="85" r="74" class="ring-bg"></circle>
-          <circle cx="85" cy="85" r="74" class="ring-fg" id="ring-fg"></circle>
-        </svg>
-        <div class="ring-center">
-          <div class="ring-remaining" id="ring-remaining">0</div>
-          <div class="ring-label">kcal remaining</div>
+  <!-- ============ HOME ============ -->
+  <section id="tab-home" class="tab-page">
+    <div class="card">
+      <div class="summary-flex">
+        <div class="ring-box">
+          <svg id="ring" width="170" height="170" viewBox="0 0 170 170" role="img" aria-label="Calories remaining today">
+            <circle cx="85" cy="85" r="74" class="ring-bg"></circle>
+            <circle cx="85" cy="85" r="74" class="ring-fg" id="ring-fg"></circle>
+          </svg>
+          <div class="ring-center">
+            <div class="ring-remaining" id="ring-remaining">0</div>
+            <div class="ring-label">kcal remaining</div>
+          </div>
+        </div>
+        <div class="summary-stats">
+          <div>
+            <div class="stat"><span class="stat-num" id="stat-target">2000</span><span class="stat-label">Target</span></div>
+            <div class="stat"><span class="stat-num" id="stat-eaten">0</span><span class="stat-label">Eaten today</span></div>
+            <div class="stat"><span class="stat-num" id="home-items">0 items</span><span class="stat-label">Logged today</span></div>
+          </div>
+          <div class="macros">
+            <div class="macro"><span class="macro-name">Protein</span><div class="bar"><div class="bar-fill protein" id="bar-protein"></div></div><span class="macro-val" id="val-protein">0 g</span></div>
+            <div class="macro"><span class="macro-name">Carbs</span><div class="bar"><div class="bar-fill carbs" id="bar-carbs"></div></div><span class="macro-val" id="val-carbs">0 g</span></div>
+            <div class="macro"><span class="macro-name">Fat</span><div class="bar"><div class="bar-fill fat" id="bar-fat"></div></div><span class="macro-val" id="val-fat">0 g</span></div>
+          </div>
+          <div class="home-quick">
+            <div class="stat"><span class="stat-num" id="home-streak">0 days</span><span class="stat-label">Logging streak</span></div>
+            <div class="stat"><span class="stat-num" id="home-avg7">—</span><span class="stat-label">7-day average (logged days)</span></div>
+          </div>
         </div>
       </div>
-      <div class="summary-stats">
-        <div class="stat"><span class="stat-num" id="stat-target">2000</span><span class="stat-label">Target</span></div>
-        <div class="stat"><span class="stat-num" id="stat-eaten">0</span><span class="stat-label">Eaten</span></div>
-        <div class="stat"><span class="stat-num" id="stat-burned-note"></span><span class="stat-label" id="stat-date-label">Today</span></div>
-        <div class="macros">
-          <div class="macro"><span class="macro-name">Protein</span><div class="bar"><div class="bar-fill protein" id="bar-protein"></div></div><span class="macro-val" id="val-protein">0 g</span></div>
-          <div class="macro"><span class="macro-name">Carbs</span><div class="bar"><div class="bar-fill carbs" id="bar-carbs"></div></div><span class="macro-val" id="val-carbs">0 g</span></div>
-          <div class="macro"><span class="macro-name">Fat</span><div class="bar"><div class="bar-fill fat" id="bar-fat"></div></div><span class="macro-val" id="val-fat">0 g</span></div>
+    </div>
+
+    <div class="card">
+      <div class="cal-head">
+        <button type="button" id="cal-prev" class="btn btn-ghost" aria-label="Previous month">&larr;</button>
+        <h2 id="cal-title">Month</h2>
+        <button type="button" id="cal-next" class="btn btn-ghost" aria-label="Next month">&rarr;</button>
+      </div>
+      <div class="cal-grid cal-weekdays" aria-hidden="true">
+        <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <p class="hint">Tap a day to open it in the Log tab.</p>
+    </div>
+  </section>
+
+  <!-- ============ LOG ============ -->
+  <section id="tab-log" class="tab-page" hidden>
+    <div class="card">
+      <div class="day-nav">
+        <button type="button" id="day-prev" class="btn btn-ghost">&larr; Prev day</button>
+        <input type="date" id="day-picker" aria-label="Choose day">
+        <button type="button" id="day-next" class="btn btn-ghost">Next day &rarr;</button>
+        <button type="button" id="day-today" class="btn btn-ghost">Today</button>
+      </div>
+      <p class="day-summary" id="log-day-summary"></p>
+    </div>
+
+    <div class="card">
+      <h2>Add food</h2>
+      <form id="search-form" class="row">
+        <input type="search" id="search-input" placeholder="Search foods, e.g. greek yogurt, creatine, chicken breast" aria-label="Search foods" required>
+        <select id="meal-select" aria-label="Meal">
+          <option>Breakfast</option>
+          <option>Lunch</option>
+          <option>Dinner</option>
+          <option>Snack</option>
+        </select>
+        <button type="submit" class="btn btn-primary">Search</button>
+      </form>
+      <p class="hint">Sources: Open Food Facts (branded products) and USDA FoodData Central (generic foods). Values are per 100 g unless a serving is listed.</p>
+      <div id="search-status" class="status" role="status"></div>
+      <ul id="search-results" class="results"></ul>
+
+      <hr>
+      <form id="barcode-form" class="row">
+        <input type="text" id="barcode-input" inputmode="numeric" placeholder="Type or paste a barcode number" aria-label="Barcode">
+        <button type="submit" class="btn">Look up barcode</button>
+        <button type="button" id="scan-btn" class="btn">Scan with camera</button>
+      </form>
+      <div id="barcode-status" class="status" role="status"></div>
+      <div id="scan-box" class="scan-box" hidden>
+        <video id="scan-video" playsinline muted></video>
+        <div class="row">
+          <span id="scan-status" class="status">Point the camera at a barcode.</span>
+          <button type="button" id="scan-stop" class="btn btn-small">Stop camera</button>
         </div>
       </div>
     </div>
-    <div class="day-nav">
-      <button type="button" id="day-prev" class="btn btn-ghost">&larr; Prev day</button>
-      <input type="date" id="day-picker" aria-label="Choose day">
-      <button type="button" id="day-next" class="btn btn-ghost">Next day &rarr;</button>
-      <button type="button" id="day-today" class="btn btn-ghost">Today</button>
+
+    <div class="card">
+      <h2>Food log</h2>
+      <div id="log-empty" class="hint">Nothing logged for this day yet. Search above to add your first food.</div>
+      <div id="log-list"></div>
     </div>
   </section>
 
-  <!-- Search -->
-  <section class="card">
-    <h2>Add food</h2>
-    <form id="search-form" class="row">
-      <input type="search" id="search-input" placeholder="Search foods, e.g. greek yogurt, creatine, chicken breast" aria-label="Search foods" required>
-      <select id="meal-select" aria-label="Meal">
-        <option>Breakfast</option>
-        <option>Lunch</option>
-        <option>Dinner</option>
-        <option>Snack</option>
-      </select>
-      <button type="submit" class="btn btn-primary">Search</button>
-    </form>
-    <p class="hint">Sources: Open Food Facts (branded products) and USDA FoodData Central (generic foods). Values are per 100 g unless a serving is listed.</p>
-    <div id="search-status" class="status" role="status"></div>
-    <ul id="search-results" class="results"></ul>
-
-    <hr>
-    <form id="barcode-form" class="row">
-      <input type="text" id="barcode-input" inputmode="numeric" placeholder="Type or paste a barcode number" aria-label="Barcode">
-      <button type="submit" class="btn">Look up barcode</button>
-    </form>
-    <div id="barcode-status" class="status" role="status"></div>
-  </section>
-
-  <!-- Log -->
-  <section class="card">
-    <h2>Food log</h2>
-    <div id="log-empty" class="hint">Nothing logged for this day yet. Search above to add your first food.</div>
-    <div id="log-list"></div>
-  </section>
-
-  <!-- Weight -->
-  <section class="card">
-    <h2>Weight</h2>
-    <div class="weight-stats row">
-      <div class="stat"><span class="stat-num" id="weight-current">—</span><span class="stat-label">Current</span></div>
-      <div class="stat"><span class="stat-num" id="weight-target">—</span><span class="stat-label">Target</span></div>
-      <div class="stat"><span class="stat-num" id="weight-to-go">—</span><span class="stat-label">To go</span></div>
+  <!-- ============ TRENDS ============ -->
+  <section id="tab-trends" class="tab-page" hidden>
+    <div class="card">
+      <div class="row space-between">
+        <h2>Calorie history</h2>
+        <div class="segmented" role="group" aria-label="Chart range">
+          <button type="button" class="seg-btn active" data-range="14">14 days</button>
+          <button type="button" class="seg-btn" data-range="30">30 days</button>
+        </div>
+      </div>
+      <div id="cal-chart" class="chart-box"></div>
+      <p class="hint">Dashed line is your daily calorie target.</p>
     </div>
-    <div id="weight-chart" class="chart-box"></div>
-    <form id="weight-form" class="row">
-      <input type="date" id="weight-date" aria-label="Weigh-in date" required>
-      <input type="number" id="weight-value" step="0.1" min="0" placeholder="Weight" aria-label="Weight" required>
-      <span id="weight-unit-label">lb</span>
-      <button type="submit" class="btn btn-primary">Add weigh-in</button>
-    </form>
-    <ul id="weight-list" class="weight-list"></ul>
+
+    <div class="card">
+      <h2>Macros — last 14 days (grams)</h2>
+      <div class="legend">
+        <span><i class="swatch protein"></i>Protein</span>
+        <span><i class="swatch carbs"></i>Carbs</span>
+        <span><i class="swatch fat"></i>Fat</span>
+      </div>
+      <div id="macro-chart" class="chart-box"></div>
+    </div>
+
+    <div class="card">
+      <h2>Weight</h2>
+      <div class="weight-stats row">
+        <div class="stat"><span class="stat-num" id="weight-current">—</span><span class="stat-label">Current</span></div>
+        <div class="stat"><span class="stat-num" id="weight-target">—</span><span class="stat-label">Target</span></div>
+        <div class="stat"><span class="stat-num" id="weight-to-go">—</span><span class="stat-label">To go</span></div>
+      </div>
+      <div id="weight-chart" class="chart-box"></div>
+      <form id="weight-form" class="row">
+        <input type="date" id="weight-date" aria-label="Weigh-in date" required>
+        <input type="number" id="weight-value" step="0.1" min="0" placeholder="Weight" aria-label="Weight" required>
+        <span id="weight-unit-label">lb</span>
+        <button type="submit" class="btn btn-primary">Add weigh-in</button>
+      </form>
+      <ul id="weight-list" class="weight-list"></ul>
+    </div>
+
+    <div class="card">
+      <div class="row space-between">
+        <h2>Micronutrients</h2>
+        <label class="inline-label">Day <input type="date" id="micro-date" aria-label="Micronutrient day"></label>
+      </div>
+      <div id="micro-list" class="micro-list"></div>
+      <p class="hint">Totals are computed from the nutrients your logged foods report in Open Food Facts / USDA. Foods that do not publish a nutrient contribute 0 for it, so treat these as a floor, not an exact total.</p>
+    </div>
   </section>
 
-  <!-- Settings -->
-  <section class="card">
-    <h2>Settings</h2>
-    <form id="settings-form" class="settings-grid">
-      <label>Daily calorie target (kcal)
-        <input type="number" id="set-target" min="500" max="10000" step="10" required>
-      </label>
-      <label>Units
-        <select id="set-unit">
-          <option value="lb">Pounds (lb)</option>
-          <option value="kg">Kilograms (kg)</option>
+  <!-- ============ WATER ============ -->
+  <section id="tab-water" class="tab-page" hidden>
+    <div class="card">
+      <h2>Water</h2>
+      <div class="day-nav">
+        <button type="button" id="water-prev" class="btn btn-ghost">&larr; Prev day</button>
+        <input type="date" id="water-picker" aria-label="Choose day">
+        <button type="button" id="water-next" class="btn btn-ghost">Next day &rarr;</button>
+        <button type="button" id="water-today" class="btn btn-ghost">Today</button>
+      </div>
+      <div class="water-display">
+        <div class="water-amount" id="water-amount">0 ml</div>
+        <div class="water-sub" id="water-sub">0 fl oz · goal 2000 ml</div>
+      </div>
+      <div class="bar water-bar"><div class="bar-fill water" id="water-bar"></div></div>
+      <p class="water-pct" id="water-pct">0% of daily goal</p>
+      <div class="row">
+        <button type="button" class="btn" data-water-add="250">+ 250 ml</button>
+        <button type="button" class="btn" data-water-add="500">+ 500 ml</button>
+        <button type="button" class="btn" data-water-add="237">+ 8 fl oz</button>
+        <button type="button" class="btn" data-water-add="473">+ 16 fl oz</button>
+      </div>
+      <form id="water-custom-form" class="row">
+        <input type="number" id="water-custom" min="1" step="1" placeholder="Custom amount" aria-label="Custom water amount">
+        <select id="water-custom-unit" aria-label="Custom amount unit">
+          <option value="ml">ml</option>
+          <option value="oz">fl oz</option>
+        </select>
+        <button type="submit" class="btn btn-primary">Add</button>
+        <button type="button" id="water-reset" class="btn btn-danger">Reset day</button>
+      </form>
+      <hr>
+      <form id="water-goal-form" class="row">
+        <label class="inline-label">Daily goal (ml)
+          <input type="number" id="water-goal" min="100" max="10000" step="50">
+        </label>
+        <button type="submit" class="btn">Save goal</button>
+      </form>
+      <div id="water-status" class="status" role="status"></div>
+    </div>
+  </section>
+
+  <!-- ============ WORKOUTS ============ -->
+  <section id="tab-workouts" class="tab-page" hidden>
+    <div class="card">
+      <h2>At-home workouts</h2>
+      <p class="hint">Bodyweight and minimal-equipment exercises with animated form demos. Watch the figure: the highlighted caption matches the part of the movement on screen. Tap pause on any demo to freeze it.</p>
+      <div class="segmented wrap-seg" role="group" aria-label="Exercise group" id="wk-filters">
+        <button type="button" class="seg-btn active" data-wk-group="All">All</button>
+        <button type="button" class="seg-btn" data-wk-group="Push">Push</button>
+        <button type="button" class="seg-btn" data-wk-group="Pull">Pull</button>
+        <button type="button" class="seg-btn" data-wk-group="Legs &amp; Core">Legs &amp; Core</button>
+        <button type="button" class="seg-btn" data-wk-group="Full-Body">Full-Body</button>
+      </div>
+      <div id="wk-list" class="wk-list"></div>
+    </div>
+  </section>
+
+  <!-- ============ MEAL PLANNER ============ -->
+  <section id="tab-planner" class="tab-page" hidden>
+    <div class="card">
+      <h2>Daily plan</h2>
+      <p class="hint" id="plan-target-note"></p>
+      <label class="inline-label">Meals per day
+        <select id="plan-meals">
+          <option value="3">3 meals</option>
+          <option value="4">4 (3 meals + snack)</option>
+          <option value="5">5 (3 meals + 2 snacks)</option>
+          <option value="6">6 (3 meals + 3 snacks)</option>
+          <option value="7">7 (3 meals + 4 snacks)</option>
         </select>
       </label>
-      <label>Current weight (<span class="set-unit-name">lb</span>)
-        <input type="number" id="set-current-weight" step="0.1" min="0" placeholder="Optional">
-      </label>
-      <label>Target weight (<span class="set-unit-name">lb</span>)
-        <input type="number" id="set-target-weight" step="0.1" min="0" placeholder="Optional">
-      </label>
-      <button type="submit" class="btn btn-primary">Save settings</button>
-    </form>
-    <p class="hint">Settings and logs are stored only in this browser (localStorage) on this device.</p>
-    <button type="button" id="clear-data" class="btn btn-danger">Erase all saved data on this device</button>
+      <div id="plan-split" class="plan-split"></div>
+    </div>
+
+    <div class="card">
+      <h2>What is in your kitchen?</h2>
+      <p class="hint">List the ingredients you have at home (comma separated). Recipes below are matched against what you already have.</p>
+      <textarea id="plan-ingredients" rows="3" placeholder="e.g. eggs, spinach, chicken breast, rice, Greek yogurt"></textarea>
+      <div class="row">
+        <button type="button" id="plan-save-ingredients" class="btn btn-primary">Find matching recipes</button>
+      </div>
+      <div id="plan-recipes" class="plan-recipes"></div>
+    </div>
+
+    <div class="card">
+      <h2>Empty kitchen?</h2>
+      <p class="hint">Generate a full day of recipes that fits your calorie split, plus a shopping list for everything you need.</p>
+      <button type="button" id="plan-generate" class="btn btn-primary">Generate a day plan + shopping list</button>
+      <div id="plan-output" class="plan-output"></div>
+    </div>
+  </section>
+
+  <!-- ============ PHOTO DIARY ============ -->
+  <section id="tab-photos" class="tab-page" hidden>
+    <div class="card">
+      <h2>Progress photos</h2>
+      <p class="hint">Photos are stored only on this device (in your browser's IndexedDB) — they are never uploaded. The faint "ghost" image is your previous photo from the same angle, so you can line up the same framing every time.</p>
+      <div class="row">
+        <label class="inline-label">Date <input type="date" id="photo-date"></label>
+        <div class="segmented" role="group" aria-label="Photo angle" id="photo-angles">
+          <button type="button" class="seg-btn active" data-photo-angle="front">Front</button>
+          <button type="button" class="seg-btn" data-photo-angle="side">Side</button>
+          <button type="button" class="seg-btn" data-photo-angle="back">Back</button>
+        </div>
+      </div>
+
+      <div class="photo-frame" id="photo-frame">
+        <img id="photo-ghost" class="photo-ghost" alt="" hidden>
+        <video id="photo-video" playsinline muted hidden></video>
+        <img id="photo-preview" alt="Selected photo preview" hidden>
+        <div class="photo-outline" aria-hidden="true"></div>
+        <span class="photo-frame-label" id="photo-frame-label">No camera active — choose a photo or start the camera.</span>
+      </div>
+
+      <div class="row">
+        <input type="file" id="photo-file" accept="image/*" aria-label="Choose a photo from this device">
+        <button type="button" id="photo-save-file" class="btn btn-primary" disabled>Save photo</button>
+      </div>
+      <div class="row">
+        <button type="button" id="photo-cam-start" class="btn">Start camera</button>
+        <button type="button" id="photo-cam-capture" class="btn btn-primary" disabled>Capture</button>
+        <button type="button" id="photo-cam-stop" class="btn" disabled>Stop camera</button>
+      </div>
+      <div id="photo-status" class="status" role="status"></div>
+    </div>
+
+    <div class="card">
+      <h2>Time-lapse</h2>
+      <div class="row">
+        <label class="inline-label">Angle
+          <select id="tl-angle">
+            <option value="front">Front</option>
+            <option value="side">Side</option>
+            <option value="back">Back</option>
+          </select>
+        </label>
+        <button type="button" id="tl-play" class="btn btn-primary">Play time-lapse</button>
+        <button type="button" id="tl-stop" class="btn" disabled>Stop</button>
+      </div>
+      <div class="photo-frame tl-frame">
+        <img id="tl-viewer" alt="Time-lapse viewer" hidden>
+        <span class="photo-frame-label" id="tl-caption">Pick an angle and press play.</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Your photos</h2>
+      <div id="photo-gallery" class="photo-gallery"></div>
+      <button type="button" id="photo-erase-all" class="btn btn-danger">Erase all progress photos</button>
+    </div>
+  </section>
+
+  <!-- ============ SETTINGS ============ -->
+  <section id="tab-settings" class="tab-page" hidden>
+    <div class="card">
+      <h2>Settings</h2>
+      <form id="settings-form" class="settings-grid">
+        <label>Daily calorie target (kcal)
+          <input type="number" id="set-target" min="500" max="10000" step="10" required>
+        </label>
+        <label>Units
+          <select id="set-unit">
+            <option value="lb">Pounds (lb)</option>
+            <option value="kg">Kilograms (kg)</option>
+          </select>
+        </label>
+        <label>Current weight (<span class="set-unit-name">lb</span>)
+          <input type="number" id="set-current-weight" step="0.1" min="0" placeholder="Optional">
+        </label>
+        <label>Target weight (<span class="set-unit-name">lb</span>)
+          <input type="number" id="set-target-weight" step="0.1" min="0" placeholder="Optional">
+        </label>
+        <button type="submit" class="btn btn-primary">Save settings</button>
+      </form>
+      <div id="settings-status" class="status" role="status"></div>
+      <p class="hint">Settings, food logs, water, and planner data are stored only in this browser (localStorage) on this device. Progress photos are stored in this browser's IndexedDB. There are no accounts in this version and nothing is uploaded to a server.</p>
+      <button type="button" id="clear-data" class="btn btn-danger">Erase all saved data on this device</button>
+    </div>
   </section>
 
 </main>
 
 <footer class="site-footer">
   <div class="wrap">
-    <p><strong>Test build.</strong> This is a public testing version of the calorie counter. Your food logs, weight entries, and settings are saved only in this browser on this device — there are no accounts and nothing is uploaded to a server. Nutrition data comes from the Open Food Facts and USDA FoodData Central public databases; values are as published by those sources.</p>
+    <p><strong>Calorie Counter.</strong> Your food logs, weight entries, water, plans, and settings are saved only in this browser on this device — there are no accounts and nothing is uploaded to a server. Progress photos stay in this browser's local database. Nutrition data comes from the Open Food Facts and USDA FoodData Central public databases; values are as published by those sources.</p>
   </div>
 </footer>
 
 <script src="app.js" defer></script>
+<script src="workouts.js" defer></script>
+<script src="photos.js" defer></script>
 </body>
 </html>
