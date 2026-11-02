@@ -1,7 +1,7 @@
 /* Calorie Counter service worker: caches the app shell so the installed
    app opens offline. Food-database APIs are cross-origin and are never
    intercepted — they always go to the network. */
-const CACHE = "calorie-counter-v1";
+const CACHE = "calorie-counter-v2";
 const SHELL = [
   "./",
   "./index.html",
@@ -9,6 +9,7 @@ const SHELL = [
   "./app.js",
   "./workouts.js",
   "./photos.js",
+  "./html5-qrcode.min.js",
   "./manifest.webmanifest",
   "./icon-192.png",
   "./icon-512.png",

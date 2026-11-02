@@ -429,24 +429,41 @@ function lookupBarcode(code) {
     });
 }
 
-/* ---------- Camera barcode scanning (BarcodeDetector where supported) ---------- */
+/* ---------- Camera barcode scanning ---------- */
 var scanStream = null;
 var scanTimer = null;
+var zxingScanner = null;
 
 function stopScan() {
   if (scanTimer) { clearInterval(scanTimer); scanTimer = null; }
   if (scanStream) { scanStream.getTracks().forEach(function (t) { t.stop(); }); scanStream = null; }
+  if (zxingScanner) {
+    var zs = zxingScanner;
+    zxingScanner = null;
+    try {
+      var p = zs.stop();
+      if (p && p.catch) p.catch(function () {});
+    } catch (e) { /* already stopped */ }
+  }
+  var holder = $("scan-zxing");
+  if (holder) { holder.hidden = true; holder.innerHTML = ""; }
+  var video = $("scan-video");
+  if (video) video.hidden = false;
   var box = $("scan-box");
   if (box) box.hidden = true;
 }
 
 function startScan() {
   var status = $("barcode-status");
-  if (!("BarcodeDetector" in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    status.textContent = "Camera barcode scanning is not supported in this browser — the typed barcode lookup above works everywhere.";
-    status.className = "status error";
-    return;
-  }
+  var hasMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  if (("BarcodeDetector" in window) && hasMedia) { startNativeScan(); return; }
+  if (hasMedia && window.Html5Qrcode) { startZxingScan(status); return; }
+  status.textContent = "Camera barcode scanning is not supported in this browser — the typed barcode lookup above works everywhere.";
+  status.className = "status error";
+}
+
+function startNativeScan() {
+  var status = $("barcode-status");
   var detector;
   try { detector = new window.BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128"] }); }
   catch (e) { detector = new window.BarcodeDetector(); }
@@ -479,6 +496,51 @@ function startScan() {
       status.className = "status error";
       stopScan();
     });
+}
+
+/* Fallback scanner for browsers without BarcodeDetector (e.g. iPhone Safari):
+   ZXing-based reader from the self-hosted html5-qrcode library. */
+function startZxingScan(status) {
+  var box = $("scan-box");
+  var video = $("scan-video");
+  var holder = $("scan-zxing");
+  box.hidden = false;
+  if (video) video.hidden = true;
+  if (holder) holder.hidden = false;
+  var note = $("scan-status");
+  if (note) note.textContent = "Point the camera at a barcode.";
+  var formats = null;
+  try {
+    var F = window.Html5QrcodeSupportedFormats;
+    formats = [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128];
+  } catch (e) { formats = null; }
+  try {
+    zxingScanner = formats
+      ? new window.Html5Qrcode("scan-zxing", { formatsToSupport: formats, verbose: false })
+      : new window.Html5Qrcode("scan-zxing", { verbose: false });
+  } catch (e) {
+    status.textContent = "Could not start the camera scanner. The typed barcode lookup works everywhere.";
+    status.className = "status error";
+    stopScan();
+    return;
+  }
+  zxingScanner.start(
+    { facingMode: "environment" },
+    { fps: 10 },
+    function (decodedText) {
+      var raw = String(decodedText || "").replace(/\D/g, "");
+      stopScan();
+      if (raw) {
+        $("barcode-input").value = raw;
+        lookupBarcode(raw);
+      }
+    },
+    function () { /* per-frame misses are expected; keep scanning */ }
+  ).catch(function () {
+    status.textContent = "Could not start the camera (permission denied or no camera). The typed barcode lookup works everywhere.";
+    status.className = "status error";
+    stopScan();
+  });
 }
 
 /* ---------- Trends: charts ---------- */
