@@ -375,7 +375,7 @@ function renderResults(results) {
       Math.round(r.per100.kcal) + " kcal · P " + round1(r.per100.protein) + " · C " + round1(r.per100.carbs) +
       " · F " + round1(r.per100.fat) + " per 100 g</div></div>" +
       '<input type="number" class="result-grams" id="grams-' + idx + '" value="100" min="1" step="1" aria-label="Grams"> g' +
-      '<button type="button" class="btn btn-primary btn-small" data-add="' + idx + '">Add</button></li>';
+      '<button type="button" class="btn btn-primary btn-small" data-add="' + idx + '"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Add</span></button></li>';
   }).join("");
   ul.querySelectorAll("[data-add]").forEach(function (btn) {
     btn.addEventListener("click", function () {
