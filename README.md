@@ -12,6 +12,12 @@ A full-featured calorie and nutrition tracker that runs entirely in the browser,
 - **Meal Planner** — splits your daily calorie target across 3–7 meals/snacks with percentage guidance; matches a built-in recipe set against the ingredients you say you have at home; and, for an empty kitchen, generates a day of recipes that fits your split plus a consolidated shopping list.
 - **Photo Diary** — progress photos (front / side / back) organized by date, captured with the camera or uploaded, with a translucent "ghost" of your previous same-angle photo and an on-screen body outline so you can reproduce the same framing. Includes a per-angle **time-lapse player**. Photos live only in your browser's IndexedDB.
 - **Themes** — six selectable color schemes (Meadow, Ocean, Sunset, Berry, Slate, Midnight), saved per user.
+- **Quick re-log** — star any search result or log entry as a favorite (with its chosen amount); Favorites and Recents (last 20 logged foods) sections in Add food re-log in one tap, and per-meal or whole-day **copy-from-yesterday** buttons duplicate a previous day's entries.
+- **Recipe builder** — build recipes from the same food search, set a servings count, see whole-recipe and per-serving nutrition (macros + micronutrients), and log by servings — fractions like 0.5 included. Recipes are editable and deletable.
+- **Voice logging** — a Speak button (Web Speech API, where the browser supports it) dictates a food into the search box and runs the normal database search; a leading quantity ("two eggs") prefills the first result's amount.
+- **Languages** — the full UI is translated for all 8 Settings languages (English, Español, Français, Deutsch, Português, Italiano, 简体中文， 日本語）, including onboarding and dialogs; food names stay as the databases publish them.
+- **Fasting timer** — intermittent-fasting tracker on the Water tab with 12–20 h target presets, a live elapsed clock with progress, and a history of completed fasts. It runs from a stored start timestamp, so it survives closing the app.
+- **Meal reminders** — opt-in lunch/dinner nudges (Settings): if a meal's time passes with nothing logged, you get a notification where supported plus an in-app banner. Reminders are checked while the app is open or in the background; a web app cannot guarantee notifications while fully closed.
 
 ## Data & privacy
 
@@ -26,8 +32,12 @@ Nutrition values come from the [Open Food Facts](https://world.openfoodfacts.org
 | `index.html` | The app page (tabbed single-page UI) |
 | `styles.css` | Styling, themes, mobile-responsive layout |
 | `app.js` | Core app: state, food search/barcode, log, home, trends, water, meal planner, settings |
+| `i18n.js` | UI translation dictionary (8 languages) and lookup helper |
+| `recipes.js` | Recipe math (totals, per-serving, log entries) — pure functions, unit-tested |
+| `fasting.js` | Fasting timer math (elapsed, progress, completion) — pure functions, unit-tested |
 | `workouts.js` | Exercise library and the animated form-demo player |
 | `photos.js` | Photo diary: IndexedDB storage, camera capture, ghost overlay, time-lapse |
+| `tests/` | Node unit/smoke tests (no dependencies): `node tests/<name>.test.js` |
 | `vercel.json` | Minimal Vercel config (clean URLs; no build settings needed) |
 | `README.md` | This file |
 
