@@ -1,9 +1,14 @@
 "use strict";
 
-/* Workouts tab: at-home exercise library with animated stick-figure demos.
+/* Workouts tab: at-home exercise library with animated form demos.
    Each pose is 10 points in a 120x120 box (side view, facing right):
    [head, neck, shoulder, elbow, hand, pelvis, kneeA, footA, kneeB, footB].
-   The player interpolates between the start pose and the peak pose. */
+   The player interpolates between the start pose and the peak pose and
+   renders each frame as a solid, clothed figure: tapered limbs drawn as
+   filled polygons (shirt-coloured torso and sleeves, shorts over the
+   upper legs, skin elsewhere), a filled head with hair, shoes, rounded
+   joint circles, a soft ground shadow, and the exercise props (wall,
+   chair, table, straps, bar) drawn as paired line segments. */
 
 var POSES = {
   stand:        { g: 108, p: [[50,16],[50,27],[51,29],[51,43],[51,57],[50,60],[47,84],[46,106],[54,84],[55,106]] },
@@ -109,7 +114,6 @@ var EXERCISES = [
 ];
 
 window.Workouts = (function () {
-
   /* UI-chrome translation via the shared dictionary (i18n.js); exercise
      names and instructions are content and stay as authored. */
   function wkText(key) {
@@ -121,24 +125,117 @@ window.Workouts = (function () {
   var rafId = null;
   var filter = "All";
 
+  /* Honour prefers-reduced-motion: no looping animation — each figure
+     rests in its start pose and its Pause/Play button steps it between
+     the start and peak poses by hand instead. */
+  var reducedMotion = false;
+  var motionQuery = null;
+  try {
+    if (window.matchMedia) {
+      motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+      reducedMotion = !!motionQuery.matches;
+    }
+  } catch (e) { /* matchMedia unavailable: animate normally */ }
+
   function interp(a, b, k) {
     return a + (b - a) * k;
   }
   function ease(k) { return k * k * (3 - 2 * k); }
+  function fmt(n) { return Math.round(n * 10) / 10; }
+
+  /* Point part-way from a to b (t = 0..1). Points are [x, y]. */
+  function along(a, b, t) {
+    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  }
+
+  /* A tapered limb/body part as a filled quad: width wA at a, wB at b,
+     centred on the a-b axis. Rounded joint circles drawn on top smooth
+     the corners where parts meet. */
+  function setPoly(el, a, b, wA, wB) {
+    if (!el) return;
+    var dx = b[0] - a[0], dy = b[1] - a[1];
+    var len = Math.sqrt(dx * dx + dy * dy) || 1;
+    var nx = -dy / len, ny = dx / len;
+    el.setAttribute("points",
+      fmt(a[0] + nx * wA) + "," + fmt(a[1] + ny * wA) + " " +
+      fmt(b[0] + nx * wB) + "," + fmt(b[1] + ny * wB) + " " +
+      fmt(b[0] - nx * wB) + "," + fmt(b[1] - ny * wB) + " " +
+      fmt(a[0] - nx * wA) + "," + fmt(a[1] - ny * wA));
+  }
+  function setLine(el, a, b) {
+    if (!el) return;
+    el.setAttribute("x1", fmt(a[0]));
+    el.setAttribute("y1", fmt(a[1]));
+    el.setAttribute("x2", fmt(b[0]));
+    el.setAttribute("y2", fmt(b[1]));
+  }
+  function setCircle(el, cx, cy) {
+    if (!el) return;
+    el.setAttribute("cx", fmt(cx));
+    el.setAttribute("cy", fmt(cy));
+  }
+  function setShoe(el, foot, knee) {
+    if (!el) return;
+    var dir = foot[0] - knee[0] >= 0 ? 1 : -1;
+    el.setAttribute("cx", fmt(foot[0] + dir * 2.2));
+    el.setAttribute("cy", fmt(foot[1] + 0.4));
+    el.setAttribute("transform", "rotate(" + (dir * 4) + " " + fmt(foot[0] + dir * 2.2) + " " + fmt(foot[1] + 0.4) + ")");
+  }
+
+  /* SVG scaffolding for one figure. Paint order: shadow, floor, props,
+     far-side limbs, torso, near-side limbs, head — so the near side and
+     the shirt sit on top and the figure reads as one solid body. */
+  function figureSvg(ex, pa, pb) {
+    var props = (pa.props || pb.props || []);
+    var svg = '<svg viewBox="0 0 120 120" role="img" aria-label="Animated demonstration of ' + esc(ex.name) + '">';
+    svg += '<ellipse class="wk-shadow" data-el="shadow" rx="18" ry="2.8"/>';
+    if (pa.g) {
+      svg += '<rect class="wk-floor" x="0" y="' + pa.g + '" width="120" height="' + (120 - pa.g) + '"/>';
+    }
+    /* Props are stored as a flat list of points; consecutive pairs form
+       one segment each (wall, chair, table edge, straps, pull-up bar).
+       Six-point props are box-like (chair / step / bench): fill the box
+       behind its outline segments. */
+    if (props.length === 6) {
+      svg += '<polygon class="wk-prop-fill" points="' +
+        props[0][0] + "," + props[0][1] + " " + props[1][0] + "," + props[1][1] + " " +
+        props[5][0] + "," + props[5][1] + " " + props[3][0] + "," + props[3][1] + '"/>';
+    }
+    for (var i = 0; i + 1 < props.length; i += 2) {
+      svg += '<line class="wk-prop" x1="' + props[i][0] + '" y1="' + props[i][1] +
+        '" x2="' + props[i + 1][0] + '" y2="' + props[i + 1][1] + '"/>';
+    }
+    if (pa.g) svg += '<line class="wk-ground" x1="2" y1="' + pa.g + '" x2="118" y2="' + pa.g + '"/>';
+    svg += '<polygon class="wk-poly wk-shirt-far" data-el="armUFar"/>';
+    svg += '<polygon class="wk-poly wk-skin-far" data-el="armFFar"/>';
+    svg += '<circle class="wk-skin-far-dot" data-el="handFar" r="2.5"/>';
+    svg += '<polygon class="wk-poly wk-shorts-far" data-el="thighShortsFar"/>';
+    svg += '<polygon class="wk-poly wk-skin-far" data-el="thighSkinFar"/>';
+    svg += '<polygon class="wk-poly wk-skin-far" data-el="shinFar"/>';
+    svg += '<circle class="wk-skin-far-dot" data-el="kneeFar" r="2.7"/>';
+    svg += '<ellipse class="wk-shoe-far" data-el="shoeFar" rx="4.4" ry="2.3"/>';
+    svg += '<polygon class="wk-poly wk-shirt" data-el="torso"/>';
+    svg += '<line class="wk-neck" data-el="neck"/>';
+    svg += '<polygon class="wk-poly wk-shorts" data-el="thighShortsNear"/>';
+    svg += '<polygon class="wk-poly wk-skin" data-el="thighSkinNear"/>';
+    svg += '<polygon class="wk-poly wk-skin" data-el="shinNear"/>';
+    svg += '<circle class="wk-skin-dot" data-el="kneeNear" r="2.8"/>';
+    svg += '<ellipse class="wk-shoe" data-el="shoeNear" rx="4.7" ry="2.5"/>';
+    svg += '<polygon class="wk-poly wk-shirt" data-el="armSleeveNear"/>';
+    svg += '<polygon class="wk-poly wk-skin" data-el="armUNear"/>';
+    svg += '<polygon class="wk-poly wk-skin" data-el="armFNear"/>';
+    svg += '<circle class="wk-skin-dot" data-el="elbowNear" r="2.6"/>';
+    svg += '<circle class="wk-skin-dot" data-el="handNear" r="2.7"/>';
+    svg += '<circle class="wk-head" data-el="head" r="7.4"/>';
+    svg += '<path class="wk-hair" data-el="hair"/>';
+    svg += '<circle class="wk-eye" data-el="eye" r="1"/>';
+    svg += "</svg>";
+    return svg;
+  }
 
   function buildCard(ex, idx) {
     var pa = POSES[ex.a], pb = POSES[ex.b];
-    var props = (pa.props || pb.props || []);
-    var svg = '<svg viewBox="0 0 120 120" role="img" aria-label="Animated demonstration of ' + esc(ex.name) + '">';
-    props.forEach(function (pr) {
-      svg += '<line class="wk-prop" x1="' + pr[0] + '" y1="' + pr[1] + '" x2="' + pr[0 + 2] + '" y2="' + pr[1 + 2] + '"/>';
-    });
-    if (pa.g) svg += '<line class="wk-ground" x1="2" y1="' + pa.g + '" x2="118" y2="' + pa.g + '"/>';
-    SEGMENTS.forEach(function (s, si) {
-      svg += '<line class="wk-fig seg" data-seg="' + si + '"/>';
-    });
-    svg += '<circle class="wk-fig-head" data-head="1" r="6.5"/>';
-    svg += "</svg>";
+    var svg = figureSvg(ex, pa, pb);
 
     var card = document.createElement("div");
     card.className = "wk-card";
@@ -154,19 +251,117 @@ window.Workouts = (function () {
       '<div class="wk-sets">' + esc(ex.sets) + "</div>" +
       '<div class="wk-controls"><button type="button" class="btn btn-small" data-pause="' + idx + '">' + wkText("wk.pause") + "</button></div>";
 
-    var lines = card.querySelectorAll("line.seg");
-    var head = card.querySelector("[data-head]");
+    function q(name) { return card.querySelector('[data-el="' + name + '"]'); }
     var fig = {
-      ex: ex, pa: pa, pb: pb, lines: lines, head: head,
+      ex: ex, pa: pa, pb: pb,
+      els: {
+        shadow: q("shadow"),
+        armUFar: q("armUFar"), armFFar: q("armFFar"), handFar: q("handFar"),
+        thighShortsFar: q("thighShortsFar"), thighSkinFar: q("thighSkinFar"),
+        shinFar: q("shinFar"), kneeFar: q("kneeFar"), shoeFar: q("shoeFar"),
+        torso: q("torso"), neck: q("neck"),
+        thighShortsNear: q("thighShortsNear"), thighSkinNear: q("thighSkinNear"),
+        shinNear: q("shinNear"), kneeNear: q("kneeNear"), shoeNear: q("shoeNear"),
+        armSleeveNear: q("armSleeveNear"), armUNear: q("armUNear"),
+        armFNear: q("armFNear"), elbowNear: q("elbowNear"), handNear: q("handNear"),
+        head: q("head"), hair: q("hair"), eye: q("eye")
+      },
       caps: { start: card.querySelector('[data-cap="start"]'), peak: card.querySelector('[data-cap="peak"]') },
-      playing: true, offset: idx * 0.37, lastK: -1
+      playing: true, showPeak: false, offset: idx * 0.37, lastK: -1
     };
     figures.push(fig);
     card.querySelector("[data-pause]").addEventListener("click", function () {
       fig.playing = !fig.playing;
       this.textContent = fig.playing ? wkText("wk.pause") : wkText("wk.play");
+      if (reducedMotion) {
+        /* No loop to pause: step the still figure between its poses. */
+        fig.showPeak = !fig.playing;
+        renderFigure(fig, fig.showPeak ? 1 : 0);
+      }
     });
     return card;
+  }
+
+  /* Draw one frame from the eased interpolation factor k (0 = start
+     pose, 1 = peak pose) and keep the captions in sync with it. */
+  function renderFigure(fig, k) {
+    var A = fig.pa.p, B = fig.pb.p;
+    var pts = A.map(function (pt, i) {
+      return [interp(pt[0], B[i][0], k), interp(pt[1], B[i][1], k)];
+    });
+    var head = pts[0], neck = pts[1], shoulder = pts[2], elbow = pts[3], hand = pts[4];
+    var pelvis = pts[5], kneeA = pts[6], footA = pts[7], kneeB = pts[8], footB = pts[9];
+    var els = fig.els;
+
+    /* Ground shadow: centred under the body's span, on the ground line
+       (or at the bottom of the frame for hanging exercises, g = 0). */
+    var minX = Math.min.apply(null, pts.map(function (p) { return p[0]; }));
+    var maxX = Math.max.apply(null, pts.map(function (p) { return p[0]; }));
+    var groundY = fig.pa.g || 116;
+    if (els.shadow) {
+      els.shadow.setAttribute("cx", fmt((minX + maxX) / 2));
+      els.shadow.setAttribute("cy", fmt(groundY + 3.2));
+      els.shadow.setAttribute("rx", fmt(Math.max(12, Math.min(38, (maxX - minX) / 2 * 0.9 + 8))));
+    }
+
+    /* Far-side arm: the same arm chain shifted slightly back, in the
+       darker shades, so the body has depth instead of one flat arm. */
+    var off = [-2.6, 1];
+    var shF = [shoulder[0] + off[0], shoulder[1] + off[1]];
+    var elF = [elbow[0] + off[0], elbow[1] + off[1]];
+    var haF = [hand[0] + off[0], hand[1] + off[1]];
+    setPoly(els.armUFar, shF, elF, 2.9, 2.4);
+    setPoly(els.armFFar, elF, haF, 2.4, 1.9);
+    setCircle(els.handFar, haF[0], haF[1]);
+
+    /* Legs: shorts cover the upper thigh, skin below; the far leg (B)
+       uses the darker shades and is drawn first. */
+    setPoly(els.thighShortsFar, pelvis, along(pelvis, kneeB, 0.58), 4.3, 3.7);
+    setPoly(els.thighSkinFar, along(pelvis, kneeB, 0.45), kneeB, 3.2, 2.6);
+    setPoly(els.shinFar, kneeB, footB, 2.6, 1.8);
+    setCircle(els.kneeFar, kneeB[0], kneeB[1]);
+    setShoe(els.shoeFar, footB, kneeB);
+
+    /* Torso: a tapered shirt from neck (wider) to pelvis. */
+    setPoly(els.torso, neck, pelvis, 5.9, 4.6);
+    setLine(els.neck, neck, head);
+
+    setPoly(els.thighShortsNear, pelvis, along(pelvis, kneeA, 0.58), 4.6, 3.9);
+    setPoly(els.thighSkinNear, along(pelvis, kneeA, 0.45), kneeA, 3.4, 2.7);
+    setPoly(els.shinNear, kneeA, footA, 2.7, 1.9);
+    setCircle(els.kneeNear, kneeA[0], kneeA[1]);
+    setShoe(els.shoeNear, footA, kneeA);
+
+    /* Near arm: a shirt sleeve on the upper arm, skin below it. */
+    setPoly(els.armSleeveNear, shoulder, along(shoulder, elbow, 0.46), 3.3, 2.9);
+    setPoly(els.armUNear, along(shoulder, elbow, 0.34), elbow, 2.9, 2.4);
+    setPoly(els.armFNear, elbow, hand, 2.4, 1.9);
+    setCircle(els.elbowNear, elbow[0], elbow[1]);
+    setCircle(els.handNear, hand[0], hand[1]);
+
+    /* Head: filled circle nudged out along the neck-to-head axis, a
+       hair cap over the top, and one eye dot on the facing side. */
+    var hdx = head[0] - neck[0], hdy = head[1] - neck[1];
+    var hLen = Math.sqrt(hdx * hdx + hdy * hdy) || 1;
+    var cx = head[0] + hdx / hLen * 1.6, cy = head[1] + hdy / hLen * 1.6 - 1;
+    var r = 7.4;
+    setCircle(els.head, cx, cy);
+    if (els.hair) {
+      els.hair.setAttribute("d",
+        "M " + fmt(cx - r) + " " + fmt(cy + 0.8) +
+        " A " + r + " " + r + " 0 0 1 " + fmt(cx + r) + " " + fmt(cy + 0.8) + " Z");
+    }
+    var face = shoulder[0] - pelvis[0];
+    if (Math.abs(face) < 4) face = footA[0] - pelvis[0];
+    if (Math.abs(face) < 2) face = 1;
+    setCircle(els.eye, cx + (face >= 0 ? 1 : -1) * 3, cy - 0.8);
+
+    var atPeak = k > 0.5;
+    if ((fig.lastK > 0.5) !== atPeak || fig.lastK === -1) {
+      fig.caps.start.classList.toggle("cap-on", !atPeak);
+      fig.caps.peak.classList.toggle("cap-on", atPeak);
+    }
+    fig.lastK = k;
   }
 
   function drawFigure(fig, t) {
@@ -174,26 +369,7 @@ window.Workouts = (function () {
     var cycle = 1700; // ms for one direction
     var phase = ((t / cycle) + fig.offset) % 2;
     var raw = phase < 1 ? phase : 2 - phase;
-    var k = ease(raw);
-    var A = fig.pa.p, B = fig.pb.p;
-    var pts = A.map(function (pt, i) {
-      return [interp(pt[0], B[i][0], k), interp(pt[1], B[i][1], k)];
-    });
-    SEGMENTS.forEach(function (s, si) {
-      var ln = fig.lines[si];
-      ln.setAttribute("x1", pts[s[0]][0].toFixed(1));
-      ln.setAttribute("y1", pts[s[0]][1].toFixed(1));
-      ln.setAttribute("x2", pts[s[1]][0].toFixed(1));
-      ln.setAttribute("y2", pts[s[1]][1].toFixed(1));
-    });
-    fig.head.setAttribute("cx", pts[0][0].toFixed(1));
-    fig.head.setAttribute("cy", (pts[0][1] - 2).toFixed(1));
-    var atPeak = k > 0.5;
-    if ((fig.lastK > 0.5) !== atPeak || fig.lastK === -1) {
-      fig.caps.start.classList.toggle("cap-on", !atPeak);
-      fig.caps.peak.classList.toggle("cap-on", atPeak);
-    }
-    fig.lastK = k;
+    renderFigure(fig, ease(raw));
   }
 
   function loop(t) {
@@ -204,8 +380,27 @@ window.Workouts = (function () {
 
   function setActive(on) {
     active = on;
+    if (on && reducedMotion) {
+      /* Still figures only: show every demo resting in its start pose. */
+      figures.forEach(function (f) { if (!f.showPeak) renderFigure(f, 0); });
+      return;
+    }
     if (on && !rafId) rafId = requestAnimationFrame(loop);
     if (!on && rafId) { cancelAnimationFrame(rafId); rafId = null; }
+  }
+
+  if (motionQuery) {
+    var onMotionChange = function (e) {
+      reducedMotion = !!e.matches;
+      if (reducedMotion) {
+        if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+        figures.forEach(function (f) { renderFigure(f, f.showPeak ? 1 : 0); });
+      } else if (active && !rafId) {
+        rafId = requestAnimationFrame(loop);
+      }
+    };
+    if (motionQuery.addEventListener) motionQuery.addEventListener("change", onMotionChange);
+    else if (motionQuery.addListener) motionQuery.addListener(onMotionChange);
   }
 
   function applyFilter() {
@@ -228,7 +423,10 @@ window.Workouts = (function () {
       });
     });
     // Draw one static frame so cards look right before the tab is opened.
-    figures.forEach(function (f) { var was = f.playing; f.playing = true; drawFigure(f, 400 + f.offset * 800); f.playing = was; });
+    figures.forEach(function (f) {
+      if (reducedMotion) { renderFigure(f, 0); return; }
+      var was = f.playing; f.playing = true; drawFigure(f, 400 + f.offset * 800); f.playing = was;
+    });
   }
 
   document.addEventListener("DOMContentLoaded", init);

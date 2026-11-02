@@ -1719,13 +1719,14 @@ function checkReminders() {
    changed since the release this device last saw. The seen release is
    stored on-device only; a first-ever visit just records the current
    release (the setup walkthrough covers the intro). */
-var APP_RELEASE = 15;
+var APP_RELEASE = 16;
 var RELEASE_NOTES = [
   { v: 11, keys: ["wn.v11a", "wn.v11b", "wn.v11c"] },
   { v: 12, keys: ["wn.v12a"] },
   { v: 13, keys: ["wn.v13a"] },
   { v: 14, keys: ["wn.v14a"] },
-  { v: 15, keys: ["wn.v15a"] }
+  { v: 15, keys: ["wn.v15a"] },
+  { v: 16, keys: ["wn.v16a"] }
 ];
 
 function whatsNewSeen() {

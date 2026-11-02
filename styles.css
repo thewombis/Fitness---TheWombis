@@ -14,6 +14,7 @@
   --water: #2f9fd8;
   --danger: #b3392e;
   --tag-bg: #eef3f0;
+  --fig-shorts: #2f3e50;
   --radius: 18px;
   --shadow: 0 6px 24px rgba(20, 30, 45, 0.07), 0 1px 3px rgba(20, 30, 45, 0.05);
   --shadow-nav: 0 -6px 24px rgba(20, 30, 45, 0.10);
@@ -31,6 +32,7 @@
   --fat: #c95d7b;
   --water: #1668a8;
   --tag-bg: #e7f1f8;
+  --fig-shorts: #243a4a;
 }
 [data-theme="sunset"] {
   --bg: #faf3ec;
@@ -45,6 +47,7 @@
   --fat: #b03a5b;
   --water: #2f9fd8;
   --tag-bg: #f9ecdf;
+  --fig-shorts: #4a3428;
 }
 [data-theme="berry"] {
   --bg: #f7f1f8;
@@ -59,6 +62,7 @@
   --fat: #d3547e;
   --water: #4aa3c7;
   --tag-bg: #f3e8f8;
+  --fig-shorts: #3d2b45;
 }
 [data-theme="slate"] {
   --bg: #eceff1;
@@ -73,6 +77,7 @@
   --fat: #96606f;
   --water: #527a8a;
   --tag-bg: #e6ecef;
+  --fig-shorts: #2f4048;
 }
 [data-theme="midnight"] {
   --bg: #12161c;
@@ -89,6 +94,7 @@
   --water: #56b6e8;
   --danger: #e0705f;
   --tag-bg: #26302b;
+  --fig-shorts: #93a9bd;
 }
 
 * { box-sizing: border-box; }
@@ -378,12 +384,32 @@ label.check input { width: auto; }
 .wk-meta { color: var(--muted); font-size: 0.82rem; }
 .wk-level { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; background: var(--tag-bg); border-radius: 99px; padding: 2px 8px; color: var(--accent-dark); }
 [data-theme="midnight"] .wk-level { color: var(--accent); }
-.wk-stage { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; }
+.wk-stage { background: linear-gradient(180deg, var(--card) 0%, var(--bg) 82%); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .wk-stage svg { width: 100%; height: auto; display: block; }
-.wk-fig { stroke: var(--ink); stroke-width: 3.4; stroke-linecap: round; fill: none; }
-.wk-fig-head { fill: var(--ink); }
-.wk-prop { stroke: var(--muted); stroke-width: 3; stroke-linecap: round; }
-.wk-ground { stroke: var(--line); stroke-width: 2; }
+/* Animated form-demo figures: solid clothed bodies, not stick figures.
+   Torso and sleeves use the theme accent (the shirt), the upper legs use
+   --fig-shorts, limbs and head use warm skin tones, and the far side of
+   the body uses the darker shades so the figure has depth. */
+.wk-poly { stroke-linejoin: round; stroke-width: 1.1; }
+.wk-shirt { fill: var(--accent); stroke: var(--accent); }
+.wk-shirt-far { fill: var(--accent-dark); stroke: var(--accent-dark); }
+.wk-shorts { fill: var(--fig-shorts); stroke: var(--fig-shorts); }
+.wk-shorts-far { fill: var(--fig-shorts); stroke: var(--fig-shorts); opacity: 0.72; }
+.wk-skin { fill: #dda06f; stroke: #dda06f; }
+.wk-skin-far { fill: #c68a56; stroke: #c68a56; }
+.wk-skin-dot { fill: #dda06f; }
+.wk-skin-far-dot { fill: #c68a56; }
+.wk-head { fill: #e6af7d; }
+.wk-hair { fill: #3b2a20; }
+.wk-eye { fill: #2b211b; }
+.wk-neck { stroke: #dda06f; stroke-width: 5; stroke-linecap: round; }
+.wk-shoe { fill: var(--ink); opacity: 0.88; }
+.wk-shoe-far { fill: var(--ink); opacity: 0.6; }
+.wk-shadow { fill: var(--ink); opacity: 0.17; }
+.wk-floor { fill: var(--tag-bg); opacity: 0.55; }
+.wk-prop { stroke: var(--muted); stroke-width: 3.6; stroke-linecap: round; opacity: 0.9; }
+.wk-prop-fill { fill: var(--tag-bg); stroke: none; opacity: 0.85; }
+.wk-ground { stroke: var(--line); stroke-width: 2.5; stroke-linecap: round; }
 .wk-caps { font-size: 0.85rem; color: var(--muted); display: grid; gap: 2px; }
 .wk-caps .cap-on { color: var(--ink); font-weight: 600; }
 .wk-sets { font-size: 0.88rem; }
