@@ -75,6 +75,7 @@
           </div>
           <div class="home-quick">
             <div class="stat"><span class="stat-num" id="home-streak">0 days</span><span class="stat-label">Logging streak</span></div>
+            <div class="stat"><span class="stat-num" id="home-goal">—</span><span class="stat-label">Goal</span></div>
             <div class="stat"><span class="stat-num" id="home-avg7">—</span><span class="stat-label">7-day average (logged days)</span></div>
           </div>
         </div>
@@ -358,6 +359,13 @@
         <label>Daily calorie target <span class="unit-note">kcal</span>
           <input type="number" id="set-target" min="500" max="10000" step="10" required>
         </label>
+        <label>Goal
+          <select id="set-goal">
+            <option value="lose">Lose weight</option>
+            <option value="maintain">Maintain weight</option>
+            <option value="gain">Build &amp; gain</option>
+          </select>
+        </label>
         <label>Units
           <select id="set-unit">
             <option value="lb">Imperial — lb, fl oz</option>
@@ -385,6 +393,13 @@
         <button type="submit" class="btn btn-primary">Save settings</button>
       </form>
       <div id="settings-status" class="status" role="status"></div>
+      <div class="settings-actions">
+        <button type="button" id="redo-setup" class="btn">Run the setup walkthrough</button>
+        <button type="button" id="export-data" class="btn">Download a backup</button>
+        <button type="button" id="import-data" class="btn">Restore from a backup</button>
+        <input type="file" id="import-file" accept="application/json,.json" hidden>
+      </div>
+      <div id="backup-status" class="status" role="status"></div>
       <p class="hint">Settings, food logs, water, and planner data are stored only in this browser (localStorage) on this device. Progress photos are stored in this browser's IndexedDB. There are no accounts in this version and nothing is uploaded to a server.</p>
       <button type="button" id="clear-data" class="btn btn-danger">Erase all saved data on this device</button>
     </div>
@@ -397,6 +412,62 @@
     <p><strong>Calorie Counter.</strong> Your food logs, weight entries, water, plans, and settings are saved only in this browser on this device — there are no accounts and nothing is uploaded to a server. Progress photos stay in this browser's local database. Nutrition data comes from the Open Food Facts and USDA FoodData Central public databases; values are as published by those sources.</p>
   </div>
 </footer>
+
+<div id="setup-wizard" class="modal-backdrop" hidden>
+    <div class="modal setup-modal" role="dialog" aria-modal="true" aria-labelledby="setup-title">
+      <p class="setup-progress" id="setup-progress">Step 1 of 4</p>
+      <div class="setup-step" data-step="1">
+        <h3 id="setup-title">Welcome to Calorie Counter</h3>
+        <p>Here is what it does for you:</p>
+        <ul class="setup-list">
+          <li><strong>Log meals fast</strong> — search real foods or scan a barcode.</li>
+          <li><strong>See your day at a glance</strong> — calorie ring, macros, and trends.</li>
+          <li><strong>Track water, weight, and workouts</strong> — all in one place.</li>
+          <li><strong>Meal plans built around your goals</strong> — set up in the next steps.</li>
+          <li><strong>Private by design</strong> — everything is stored only on this device.</li>
+        </ul>
+      </div>
+      <div class="setup-step" data-step="2" hidden>
+        <h3>What is your goal?</h3>
+        <div class="segmented wrap-seg" id="setup-goals">
+          <button type="button" class="seg-btn" data-goal="lose">Lose weight</button>
+          <button type="button" class="seg-btn" data-goal="maintain">Maintain weight</button>
+          <button type="button" class="seg-btn" data-goal="gain">Build &amp; gain</button>
+        </div>
+        <label class="setup-field">Units
+          <select id="setup-unit">
+            <option value="lb">Imperial — lb, fl oz</option>
+            <option value="kg">Metric — kg, ml</option>
+          </select>
+        </label>
+      </div>
+      <div class="setup-step" data-step="3" hidden>
+        <h3>Where are you starting from?</h3>
+        <label class="setup-field">Current weight <span class="unit-note setup-unit-name">lb</span>
+          <input type="number" id="setup-current" step="0.1" min="0" inputmode="decimal" placeholder="e.g. 180">
+        </label>
+        <label class="setup-field">Target weight <span class="unit-note setup-unit-name">lb</span>
+          <input type="number" id="setup-target-weight" step="0.1" min="0" inputmode="decimal" placeholder="e.g. 165">
+        </label>
+        <p class="hint">You can change these anytime in Settings.</p>
+      </div>
+      <div class="setup-step" data-step="4" hidden>
+        <h3>Your daily calorie target</h3>
+        <p class="hint" id="setup-summary"></p>
+        <label class="setup-field">Daily calorie target <span class="unit-note">kcal</span>
+          <input type="number" id="setup-target" step="10" min="500" max="10000">
+        </label>
+        <p class="hint">A starting point based on your goal — your home ring and meal planner build around it. Fine-tune anytime in Settings.</p>
+      </div>
+      <div class="row modal-actions setup-nav">
+        <button type="button" id="setup-skip" class="btn btn-ghost">Skip for now</button>
+        <span>
+          <button type="button" id="setup-back" class="btn" hidden>Back</button>
+          <button type="button" id="setup-next" class="btn btn-primary">Next</button>
+        </span>
+      </div>
+    </div>
+  </div>
 
 <div id="erase-modal" class="modal-backdrop" hidden>
     <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="erase-title" aria-describedby="erase-text">

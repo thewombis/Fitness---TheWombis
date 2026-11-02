@@ -67,7 +67,7 @@ function num(v) { var n = Number(v); return isFinite(n) ? n : 0; }
 function defaultState() {
   return {
     settings: {
-      target: 2000, unit: "lb", language: "en",
+      target: 2000, unit: "lb", language: "en", goal: "maintain", onboarded: false,
       targetWeightKg: null, currentWeightKg: null,
       waterGoalMl: 2000, theme: "meadow"
     },
@@ -174,6 +174,11 @@ function renderHome() {
   $("ring-remaining").parentElement.querySelector(".ring-label").textContent =
     remaining < 0 ? "kcal over target" : "kcal remaining";
   $("stat-target").textContent = String(target);
+  var goalTxt = { lose: "Lose weight", maintain: "Maintain", gain: "Build & gain" }[state.settings.goal] || "Maintain";
+  if (state.settings.currentWeightKg != null && state.settings.targetWeightKg != null) {
+    goalTxt += " · " + round1(Math.abs(toDisplayWeight(state.settings.currentWeightKg) - toDisplayWeight(state.settings.targetWeightKg))) + " " + unitLabel() + " to go";
+  }
+  $("home-goal").textContent = goalTxt;
   $("stat-eaten").textContent = String(Math.round(totals.kcal));
   $("home-items").textContent = entriesFor(today).length + (entriesFor(today).length === 1 ? " item" : " items");
 
@@ -903,10 +908,135 @@ function applyLanguage() {
 function renderSettings() {
   $("set-target").value = state.settings.target;
   $("set-unit").value = state.settings.unit;
+  $("set-goal").value = state.settings.goal || "maintain";
   $("set-language").value = state.settings.language || "en";
   $("set-target-weight").value = state.settings.targetWeightKg != null ? round1(toDisplayWeight(state.settings.targetWeightKg)) : "";
   $("set-current-weight").value = state.settings.currentWeightKg != null ? round1(toDisplayWeight(state.settings.currentWeightKg)) : "";
   document.querySelectorAll(".set-unit-name").forEach(function (el) { el.textContent = unitLabel(); });
+}
+
+/* ---------- First-run setup wizard ---------- */
+var GOAL_KCAL = { lose: 1800, maintain: 2000, gain: 2400 };
+var GOAL_TEXT = { lose: "Lose weight", maintain: "Maintain weight", gain: "Build & gain" };
+var setupStep = 1;
+var setupGoal = "maintain";
+
+function setupShowStep(n) {
+  setupStep = n;
+  document.querySelectorAll(".setup-step").forEach(function (el) {
+    el.hidden = Number(el.getAttribute("data-step")) !== n;
+  });
+  $("setup-progress").textContent = "Step " + n + " of 4";
+  $("setup-back").hidden = n === 1;
+  $("setup-next").textContent = n === 4 ? "Start tracking" : "Next";
+  if (n === 4) setupFillSummary();
+}
+
+function setupSyncGoalButtons() {
+  document.querySelectorAll("#setup-goals .seg-btn").forEach(function (b) {
+    b.classList.toggle("active", b.getAttribute("data-goal") === setupGoal);
+  });
+}
+
+function setupSyncUnitLabels() {
+  var u = $("setup-unit").value === "kg" ? "kg" : "lb";
+  document.querySelectorAll(".setup-unit-name").forEach(function (el) { el.textContent = u; });
+}
+
+function setupFillSummary() {
+  var cur = $("setup-current").value, tgt = $("setup-target-weight").value;
+  var u = $("setup-unit").value === "kg" ? "kg" : "lb";
+  var s = "Goal: " + GOAL_TEXT[setupGoal] + ".";
+  if (cur) s += " Current weight: " + cur + " " + u + ".";
+  if (tgt) s += " Target weight: " + tgt + " " + u + ".";
+  $("setup-summary").textContent = s;
+}
+
+function openSetup() {
+  setupGoal = state.settings.goal || "maintain";
+  $("setup-unit").value = state.settings.unit || "lb";
+  $("setup-current").value = state.settings.currentWeightKg != null ? round1(toDisplayWeight(state.settings.currentWeightKg)) : "";
+  $("setup-target-weight").value = state.settings.targetWeightKg != null ? round1(toDisplayWeight(state.settings.targetWeightKg)) : "";
+  $("setup-target").value = state.settings.target || GOAL_KCAL[setupGoal];
+  setupSyncGoalButtons();
+  setupSyncUnitLabels();
+  $("setup-wizard").hidden = false;
+  setupShowStep(1);
+}
+
+function closeSetup() { $("setup-wizard").hidden = true; }
+
+function finishSetup(save) {
+  if (save) {
+    state.settings.goal = setupGoal;
+    state.settings.unit = $("setup-unit").value === "kg" ? "kg" : "lb";
+    var cw = $("setup-current").value;
+    if (cw !== "" && Number(cw) > 0) {
+      var kg = fromDisplayWeight(Number(cw));
+      state.settings.currentWeightKg = kg;
+      var t = todayStr();
+      state.weights = state.weights.filter(function (w) { return w.date !== t; });
+      state.weights.push({ date: t, kg: kg });
+    }
+    var tw = $("setup-target-weight").value;
+    state.settings.targetWeightKg = tw === "" ? null : fromDisplayWeight(Number(tw));
+    var tk = Number($("setup-target").value);
+    if (tk >= 500 && tk <= 10000) state.settings.target = Math.round(tk);
+  }
+  state.settings.onboarded = true;
+  saveState();
+  closeSetup();
+  renderSettings();
+  renderAll();
+}
+
+/* ---------- Backup download / restore ---------- */
+function downloadBackup() {
+  var payload = {
+    app: "calorie-counter", kind: "backup", version: 1,
+    exportedAt: new Date().toISOString(),
+    data: state, photos: []
+  };
+  var done = function () {
+    var blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "calorie-counter-backup-" + todayStr() + ".json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+    $("backup-status").className = "status";
+    $("backup-status").textContent = "Backup downloaded — it includes your logs, settings, and progress photos. Keep the file somewhere safe; it is the only copy.";
+  };
+  if (window.Photos && window.Photos.exportPhotos) {
+    window.Photos.exportPhotos().then(function (list) { payload.photos = list || []; done(); }).catch(function () { done(); });
+  } else { done(); }
+}
+
+function restoreBackup(file) {
+  var reader = new FileReader();
+  reader.onload = function () {
+    var parsed = null;
+    try { parsed = JSON.parse(reader.result); } catch (e) { parsed = null; }
+    if (!parsed || parsed.app !== "calorie-counter" || !parsed.data || !parsed.data.settings) {
+      $("backup-status").className = "status error";
+      $("backup-status").textContent = "That file is not a valid Calorie Counter backup.";
+      return;
+    }
+    if (!window.confirm("Restore this backup? It will REPLACE everything currently saved in the app on this device.")) return;
+    var fresh = defaultState();
+    state = Object.assign(fresh, parsed.data);
+    state.settings = Object.assign(defaultState().settings, parsed.data.settings);
+    selectedDate = todayStr();
+    waterDate = todayStr();
+    saveState();
+    var finish = function () { window.location.reload(); };
+    if (window.Photos && window.Photos.importPhotos && Array.isArray(parsed.photos)) {
+      window.Photos.importPhotos(parsed.photos).then(finish).catch(finish);
+    } else { finish(); }
+  };
+  reader.readAsText(file);
 }
 
 /* ---------- Erase confirmation (type ERASE to proceed) ---------- */
@@ -1087,6 +1217,7 @@ function init() {
     var target = Number($("set-target").value);
     if (target >= 500 && target <= 10000) state.settings.target = Math.round(target);
     state.settings.unit = $("set-unit").value === "kg" ? "kg" : "lb";
+    state.settings.goal = ["lose", "maintain", "gain"].indexOf($("set-goal").value) >= 0 ? $("set-goal").value : "maintain";
     state.settings.language = $("set-language").value || "en";
     applyLanguage();
     var tw = $("set-target-weight").value;
@@ -1101,6 +1232,32 @@ function init() {
     }
     saveState(); renderSettings(); renderAll();
     $("settings-status").textContent = "Settings saved.";
+  });
+
+  // Setup wizard
+  document.querySelectorAll("#setup-goals .seg-btn").forEach(function (b) {
+    b.addEventListener("click", function () {
+      setupGoal = b.getAttribute("data-goal");
+      setupSyncGoalButtons();
+      $("setup-target").value = GOAL_KCAL[setupGoal];
+    });
+  });
+  $("setup-unit").addEventListener("change", setupSyncUnitLabels);
+  $("setup-back").addEventListener("click", function () { if (setupStep > 1) setupShowStep(setupStep - 1); });
+  $("setup-next").addEventListener("click", function () {
+    if (setupStep < 4) setupShowStep(setupStep + 1);
+    else finishSetup(true);
+  });
+  $("setup-skip").addEventListener("click", function () { finishSetup(false); });
+  $("redo-setup").addEventListener("click", openSetup);
+  if (!state.settings.onboarded) openSetup();
+
+  // Backup / restore
+  $("export-data").addEventListener("click", downloadBackup);
+  $("import-data").addEventListener("click", function () { $("import-file").click(); });
+  $("import-file").addEventListener("change", function () {
+    if (this.files && this.files[0]) restoreBackup(this.files[0]);
+    this.value = "";
   });
 
   $("erase-input").addEventListener("input", function () {

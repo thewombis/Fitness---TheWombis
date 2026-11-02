@@ -431,6 +431,15 @@ hr { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
 .modal h3 { margin-top: 0; }
 .modal input { width: 100%; margin: 4px 0 14px; }
 .modal-actions { justify-content: flex-end; }
+
+/* First-run setup wizard + settings actions */
+.setup-modal { max-width: 460px; }
+.setup-progress { color: var(--muted); font-size: 0.85rem; margin: 0 0 6px; }
+.setup-list { margin: 8px 0 4px; padding-left: 20px; display: grid; gap: 7px; }
+.setup-field { display: grid; gap: 5px; font-size: 0.94rem; color: var(--muted); margin-top: 12px; }
+.setup-field input, .setup-field select { color: var(--ink); }
+.setup-nav { justify-content: space-between; margin-top: 18px; }
+.settings-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; }
 #clear-data { margin-top: 6px; }
 
 .site-footer { padding: 10px 0 30px; color: var(--muted); font-size: 0.9rem; }

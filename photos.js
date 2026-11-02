@@ -332,5 +332,38 @@ window.Photos = (function () {
   }
 
   document.addEventListener("DOMContentLoaded", init);
-  return { stopCamera: stopCamera };
+  function blobToDataUrl(blob) {
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onload = function () { resolve(r.result); };
+      r.onerror = function () { reject(r.error); };
+      r.readAsDataURL(blob);
+    });
+  }
+
+  function exportPhotos() {
+    return getAll().then(function (all) {
+      return Promise.all(all.map(function (p) {
+        return blobToDataUrl(p.blob).then(function (url) {
+          return { date: p.date, angle: p.angle, createdAt: p.createdAt || null, dataUrl: url };
+        });
+      }));
+    });
+  }
+
+  function importPhotos(list) {
+    return clearPhotos().then(function () {
+      var chain = Promise.resolve();
+      (list || []).forEach(function (p) {
+        chain = chain.then(function () {
+          return fetch(p.dataUrl).then(function (r) { return r.blob(); }).then(function (blob) {
+            return addPhoto({ date: p.date, angle: p.angle, blob: blob, createdAt: p.createdAt || Date.now() });
+          });
+        });
+      });
+      return chain;
+    }).then(function () { refreshGallery(); });
+  }
+
+  return { stopCamera: stopCamera, exportPhotos: exportPhotos, importPhotos: importPhotos };
 })();
