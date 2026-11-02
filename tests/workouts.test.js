@@ -68,10 +68,12 @@ assert.deepStrictEqual(groups, { Push: 9, Pull: 6, "Legs & Core": 13, "Full-Body
 
 // 3. Polished-figure rendering markers, and the behaviours kept.
 ["wk-shirt", "wk-shorts", "data-el=\"torso\"", "data-el=\"shadow\"",
- "data-el=\"hair\"", "data-el=\"shoeNear\"", "setPoly", "wk-prop-fill"
+ "data-el=\"hair\"", "data-el=\"shoeNear\"", "setPoly", "wk-prop-fill",
+ "data-el=\"shoulder\"", "data-el=\"nose\"", "<ellipse class=\"wk-head\""
 ].forEach(function (needle) {
   assert.ok(src.indexOf(needle) !== -1, "workouts.js renders: " + needle);
 });
+assert.ok(src.indexOf("wk-eye") === -1, "no cartoon eye dot on the face");
 assert.ok(src.indexOf('class="wk-fig seg"') === -1, "old stick-figure segments are gone");
 assert.ok(/var cycle = 1700/.test(src), "1700 ms loop timing kept");
 assert.ok(src.indexOf('wkText("wk.pause")') !== -1, "pause control kept");

@@ -6,7 +6,8 @@
    The player interpolates between the start pose and the peak pose and
    renders each frame as a solid, clothed figure: tapered limbs drawn as
    filled polygons (shirt-coloured torso and sleeves, shorts over the
-   upper legs, skin elsewhere), a filled head with hair, shoes, rounded
+   upper legs, skin elsewhere), an oval head on a short tapered neck
+   with natural hair and a minimal profile, shoes, rounded
    joint circles, a soft ground shadow, and the exercise props (wall,
    chair, table, straps, bar) drawn as paired line segments. */
 
@@ -215,7 +216,8 @@ window.Workouts = (function () {
     svg += '<circle class="wk-skin-far-dot" data-el="kneeFar" r="2.7"/>';
     svg += '<ellipse class="wk-shoe-far" data-el="shoeFar" rx="4.4" ry="2.3"/>';
     svg += '<polygon class="wk-poly wk-shirt" data-el="torso"/>';
-    svg += '<line class="wk-neck" data-el="neck"/>';
+    svg += '<circle class="wk-shirt-dot" data-el="shoulder"/>';
+    svg += '<polygon class="wk-poly wk-skin" data-el="neck"/>';
     svg += '<polygon class="wk-poly wk-shorts" data-el="thighShortsNear"/>';
     svg += '<polygon class="wk-poly wk-skin" data-el="thighSkinNear"/>';
     svg += '<polygon class="wk-poly wk-skin" data-el="shinNear"/>';
@@ -226,9 +228,9 @@ window.Workouts = (function () {
     svg += '<polygon class="wk-poly wk-skin" data-el="armFNear"/>';
     svg += '<circle class="wk-skin-dot" data-el="elbowNear" r="2.6"/>';
     svg += '<circle class="wk-skin-dot" data-el="handNear" r="2.7"/>';
-    svg += '<circle class="wk-head" data-el="head" r="7.4"/>';
+    svg += '<ellipse class="wk-head" data-el="head" rx="6.3" ry="6.9"/>';
+    svg += '<circle class="wk-nose" data-el="nose" r="1.25"/>';
     svg += '<path class="wk-hair" data-el="hair"/>';
-    svg += '<circle class="wk-eye" data-el="eye" r="1"/>';
     svg += "</svg>";
     return svg;
   }
@@ -259,12 +261,12 @@ window.Workouts = (function () {
         armUFar: q("armUFar"), armFFar: q("armFFar"), handFar: q("handFar"),
         thighShortsFar: q("thighShortsFar"), thighSkinFar: q("thighSkinFar"),
         shinFar: q("shinFar"), kneeFar: q("kneeFar"), shoeFar: q("shoeFar"),
-        torso: q("torso"), neck: q("neck"),
+        torso: q("torso"), shoulder: q("shoulder"), neck: q("neck"),
         thighShortsNear: q("thighShortsNear"), thighSkinNear: q("thighSkinNear"),
         shinNear: q("shinNear"), kneeNear: q("kneeNear"), shoeNear: q("shoeNear"),
         armSleeveNear: q("armSleeveNear"), armUNear: q("armUNear"),
         armFNear: q("armFNear"), elbowNear: q("elbowNear"), handNear: q("handNear"),
-        head: q("head"), hair: q("hair"), eye: q("eye")
+        head: q("head"), nose: q("nose"), hair: q("hair")
       },
       caps: { start: card.querySelector('[data-cap="start"]'), peak: card.querySelector('[data-cap="peak"]') },
       playing: true, showPeak: false, offset: idx * 0.37, lastK: -1
@@ -322,9 +324,10 @@ window.Workouts = (function () {
     setCircle(els.kneeFar, kneeB[0], kneeB[1]);
     setShoe(els.shoeFar, footB, kneeB);
 
-    /* Torso: a tapered shirt from neck (wider) to pelvis. */
+    /* Torso: a tapered shirt from neck (wider) to pelvis. The neck and
+       shoulder cap are positioned in the head section below, where the
+       head axis they depend on is computed. */
     setPoly(els.torso, neck, pelvis, 5.9, 4.6);
-    setLine(els.neck, neck, head);
 
     setPoly(els.thighShortsNear, pelvis, along(pelvis, kneeA, 0.58), 4.6, 3.9);
     setPoly(els.thighSkinNear, along(pelvis, kneeA, 0.45), kneeA, 3.4, 2.7);
@@ -339,22 +342,68 @@ window.Workouts = (function () {
     setCircle(els.elbowNear, elbow[0], elbow[1]);
     setCircle(els.handNear, hand[0], hand[1]);
 
-    /* Head: filled circle nudged out along the neck-to-head axis, a
-       hair cap over the top, and one eye dot on the facing side. */
+    /* Head and neck: an oval head (6.3 x 6.9 — about 40% of the torso
+       length, not a round bobblehead) whose long axis follows the
+       neck-to-head axis, so it tilts naturally in plank, floor, and
+       hanging poses. The centre sits close in (0.6 along the axis), and
+       a short tapered neck polygon runs from inside the head to inside
+       the torso over a shirt-coloured shoulder cap that rounds the
+       torso top into the shoulders — no peg neck, no floating head,
+       no sharp shoulder angle. The face stays a clean minimal profile:
+       no eye dot, just a small rounded nose bump on the facing side.
+       Hair is a sampled arc over the top and down the back of the oval
+       with a slanted hairline, not a straight bowl-cut chord. */
     var hdx = head[0] - neck[0], hdy = head[1] - neck[1];
     var hLen = Math.sqrt(hdx * hdx + hdy * hdy) || 1;
-    var cx = head[0] + hdx / hLen * 1.6, cy = head[1] + hdy / hLen * 1.6 - 1;
-    var r = 7.4;
-    setCircle(els.head, cx, cy);
-    if (els.hair) {
-      els.hair.setAttribute("d",
-        "M " + fmt(cx - r) + " " + fmt(cy + 0.8) +
-        " A " + r + " " + r + " 0 0 1 " + fmt(cx + r) + " " + fmt(cy + 0.8) + " Z");
-    }
+    var ax = hdx / hLen, ay = hdy / hLen;
+    var cx = head[0] + ax * 0.6, cy = head[1] + ay * 0.6;
+    /* Facing: the torso lean is the reliable cue when it is clear
+       (plank, rows, push-ups); for near-upright torsos the front knee,
+       then the reaching hand, decides; otherwise the authored default,
+       facing right. (The old foot-based fallback flipped the face in
+       plain standing and squat poses, putting the profile on the back
+       of the head.) */
     var face = shoulder[0] - pelvis[0];
-    if (Math.abs(face) < 4) face = footA[0] - pelvis[0];
-    if (Math.abs(face) < 2) face = 1;
-    setCircle(els.eye, cx + (face >= 0 ? 1 : -1) * 3, cy - 0.8);
+    if (Math.abs(face) < 3) face = kneeA[0] - pelvis[0];
+    if (Math.abs(face) < 6) face = hand[0] - pelvis[0];
+    if (Math.abs(face) < 6) face = 1;
+    var fs = face >= 0 ? 1 : -1;
+    var fx = -ay * fs, fy = ax * fs; // front-of-face direction
+    var HRX = 6.3, HRY = 6.9;
+    if (els.head) {
+      els.head.setAttribute("cx", fmt(cx));
+      els.head.setAttribute("cy", fmt(cy));
+      var deg = Math.atan2(ax, -ay) * 180 / Math.PI;
+      els.head.setAttribute("transform", "rotate(" + fmt(deg) + " " + fmt(cx) + " " + fmt(cy) + ")");
+    }
+    setCircle(els.shoulder, neck[0], neck[1]);
+    var tdx = pelvis[0] - neck[0], tdy = pelvis[1] - neck[1];
+    var tLen = Math.sqrt(tdx * tdx + tdy * tdy) || 1;
+    setPoly(els.neck,
+      [cx - ax * 5.2, cy - ay * 5.2],
+      [neck[0] + tdx / tLen * 4.5, neck[1] + tdy / tLen * 4.5],
+      2.05, 2.9);
+    /* The nose bump only reads as a profile when the head is mostly
+       upright; on a near-horizontal head (plank, pike, lying poses) it
+       lands under the chin, so it is hidden there instead. */
+    if (els.nose) {
+      if (Math.abs(ax) <= 0.6) {
+        els.nose.setAttribute("visibility", "visible");
+        setCircle(els.nose, cx + fx * (HRX * 0.94) - ax * 0.4, cy + fy * (HRX * 0.94) - ay * 0.4);
+      } else {
+        els.nose.setAttribute("visibility", "hidden");
+      }
+    }
+    if (els.hair) {
+      var hd = "";
+      for (var hi = 0; hi <= 10; hi++) {
+        var phi = (62 - hi * 14) * Math.PI / 180;
+        var hx = cx + fx * (HRX * Math.sin(phi)) + ax * (HRY * Math.cos(phi));
+        var hy = cy + fy * (HRX * Math.sin(phi)) + ay * (HRY * Math.cos(phi));
+        hd += (hi === 0 ? "M " : " L ") + fmt(hx) + " " + fmt(hy);
+      }
+      els.hair.setAttribute("d", hd + " Z");
+    }
 
     var atPeak = k > 0.5;
     if ((fig.lastK > 0.5) !== atPeak || fig.lastK === -1) {

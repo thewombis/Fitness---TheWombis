@@ -401,8 +401,8 @@ label.check input { width: auto; }
 .wk-skin-far-dot { fill: #c68a56; }
 .wk-head { fill: #e6af7d; }
 .wk-hair { fill: #3b2a20; }
-.wk-eye { fill: #2b211b; }
-.wk-neck { stroke: #dda06f; stroke-width: 5; stroke-linecap: round; }
+.wk-nose { fill: #e6af7d; }
+.wk-shirt-dot { fill: var(--accent); }
 .wk-shoe { fill: var(--ink); opacity: 0.88; }
 .wk-shoe-far { fill: var(--ink); opacity: 0.6; }
 .wk-shadow { fill: var(--ink); opacity: 0.17; }

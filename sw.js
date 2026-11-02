@@ -1,7 +1,7 @@
 /* The Wombis's Calorie Counter service worker: caches the app shell so the installed
    app opens offline. Food-database APIs are cross-origin and are never
    intercepted — they always go to the network. */
-const CACHE = "calorie-counter-v16";
+const CACHE = "calorie-counter-v17";
 const SHELL = [
   "./",
   "./index.html",
