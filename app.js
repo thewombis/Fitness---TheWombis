@@ -490,6 +490,7 @@ function volumeText(ml) {
 }
 
 function entryAmountText(it) {
+  if (it.recipeServing) return round1(it.dispQty) + " " + (it.dispQty === 1 ? "serving" : "servings") + " (recipe)";
   if (it.dispUnit === "serving" && it.servingAmount) {
     var base = it.servingUnit === "ml" ? volumeText(it.servingAmount) : it.servingAmount + " g";
     var lab = it.servingLabel || "serving";
@@ -745,6 +746,205 @@ function copyFromYesterday(meal) {
   saveState(); renderAll();
   $("search-status").textContent = "Copied " + list.length + " item" + (list.length === 1 ? "" : "s") + " from " + prettyDate(src) + ".";
   $("search-status").className = "status";
+}
+
+/* ---------- Recipe builder ---------- */
+var recipeDraft = { id: null, name: "", servings: 1, ingredients: [] };
+
+function saveRecipes() { saveJSON(RECIPE_KEY, myRecipes); }
+
+function nutritionLine(n) {
+  return Math.round(n.kcal) + " kcal · P " + round1(n.protein) + " g · C " + round1(n.carbs) + " g · F " + round1(n.fat) + " g";
+}
+function microsLine(n) {
+  if (!n.micros) return "";
+  var parts = MICROS.filter(function (m) { return num(n.micros[m.key]) > 0.005; }).map(function (m) {
+    return m.name + " " + round1(n.micros[m.key]) + " " + m.unit;
+  });
+  return parts.length ? parts.join(" · ") : "";
+}
+
+function renderRecipeBuilder() {
+  var listBox = $("recipe-list");
+  if (!listBox) return;
+  // Saved recipes, each loggable by servings into the selected meal/day.
+  if (!myRecipes.length) {
+    listBox.innerHTML = '<p class="hint">No saved recipes yet. Build your first one below.</p>';
+  } else {
+    listBox.innerHTML = myRecipes.map(function (r) {
+      var per = window.Recipes.recipePerServing(r);
+      var micro = microsLine(per);
+      return '<div class="recipe"><h3>' + esc(r.name) + '</h3>' +
+        '<div class="recipe-meta">Makes ' + round1(r.servings) + " serving" + (r.servings === 1 ? "" : "s") + " · per serving: " + nutritionLine(per) + (micro ? "<br>" + esc(micro) : "") + "</div>" +
+        '<div class="row"><label>Servings <input type="number" class="recipe-qty" id="rq-' + r.id + '" value="1" min="0" step="0.25"></label>' +
+        '<button type="button" class="btn btn-primary btn-small" data-recipe-log="' + r.id + '">Log</button>' +
+        '<button type="button" class="btn btn-small" data-recipe-edit="' + r.id + '">Edit</button>' +
+        '<button type="button" class="btn btn-small btn-danger" data-recipe-del="' + r.id + '">Delete</button></div></div>';
+    }).join("");
+    listBox.querySelectorAll("[data-recipe-log]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var r = myRecipes.filter(function (x) { return x.id === btn.getAttribute("data-recipe-log"); })[0];
+        if (!r) return;
+        var qty = Number($("rq-" + r.id).value);
+        if (!(qty > 0)) qty = 1;
+        var entry = window.Recipes.recipeEntry(r, qty, $("meal-select").value, Date.now() + "-" + Math.floor(Math.random() * 100000));
+        if (!state.entries[selectedDate]) state.entries[selectedDate] = [];
+        state.entries[selectedDate].push(entry);
+        saveState(); renderAll();
+        $("recipe-status").textContent = "Logged " + round1(qty) + " serving" + (qty === 1 ? "" : "s") + " of " + r.name + " to " + entry.meal + ".";
+        $("recipe-status").className = "status";
+      });
+    });
+    listBox.querySelectorAll("[data-recipe-edit]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var r = myRecipes.filter(function (x) { return x.id === btn.getAttribute("data-recipe-edit"); })[0];
+        if (r) loadRecipeDraft(r);
+      });
+    });
+    listBox.querySelectorAll("[data-recipe-del]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var r = myRecipes.filter(function (x) { return x.id === btn.getAttribute("data-recipe-del"); })[0];
+        if (!r) return;
+        if (!window.confirm("Delete the recipe \"" + r.name + "\"? Entries already logged from it stay in your log.")) return;
+        myRecipes = myRecipes.filter(function (x) { return x.id !== r.id; });
+        if (recipeDraft.id === r.id) resetRecipeDraft();
+        saveRecipes(); renderRecipeBuilder();
+        $("recipe-status").textContent = "Recipe deleted.";
+        $("recipe-status").className = "status";
+      });
+    });
+  }
+  // Draft (new or being edited)
+  $("recipe-form-title").textContent = recipeDraft.id ? "Edit recipe" : "New recipe";
+  $("recipe-cancel-edit").hidden = !recipeDraft.id;
+  var ingBox = $("recipe-ingredients");
+  if (!recipeDraft.ingredients.length) {
+    ingBox.innerHTML = '<p class="hint">No ingredients yet. Search below and add foods to the recipe.</p>';
+  } else {
+    ingBox.innerHTML = recipeDraft.ingredients.map(function (ing, i) {
+      var s = window.Recipes.scalePer100(ing.per100, ing.grams);
+      return '<div class="quick-row"><div class="quick-main">' +
+        '<span class="result-name">' + esc(ing.name) + "</span>" +
+        '<div class="result-meta">' + (ing.brand ? esc(ing.brand) + " · " : "") + esc(snapshotAmountText(ing)) + " · " + Math.round(s.kcal) + " kcal</div></div>" +
+        '<button type="button" class="log-remove" data-ing-remove="' + i + '" aria-label="Remove ' + esc(ing.name) + ' from the recipe">&times;</button></div>';
+    }).join("");
+    ingBox.querySelectorAll("[data-ing-remove]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        recipeDraft.ingredients.splice(Number(btn.getAttribute("data-ing-remove")), 1);
+        renderRecipeBuilder();
+      });
+    });
+  }
+  var totalsBox = $("recipe-totals");
+  if (recipeDraft.ingredients.length) {
+    var draftRecipe = { name: recipeDraft.name, servings: recipeDraft.servings, ingredients: recipeDraft.ingredients };
+    var tot = window.Recipes.recipeTotals(draftRecipe);
+    var per = window.Recipes.recipePerServing(draftRecipe);
+    var micro = microsLine(per);
+    totalsBox.textContent = "Whole recipe: " + nutritionLine(tot) + " — Per serving: " + nutritionLine(per) + (micro ? " · " + micro : "");
+  } else {
+    totalsBox.textContent = "";
+  }
+}
+
+function loadRecipeDraft(r) {
+  recipeDraft = JSON.parse(JSON.stringify({ id: r.id, name: r.name, servings: r.servings, ingredients: r.ingredients }));
+  $("recipe-name").value = recipeDraft.name;
+  $("recipe-servings").value = recipeDraft.servings;
+  $("recipe-status").textContent = "Editing \"" + r.name + "\". Change anything, then Save recipe.";
+  $("recipe-status").className = "status";
+  renderRecipeBuilder();
+  $("recipes-card").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function resetRecipeDraft() {
+  recipeDraft = { id: null, name: "", servings: 1, ingredients: [] };
+  $("recipe-name").value = "";
+  $("recipe-servings").value = 1;
+  $("recipe-search-results").innerHTML = "";
+  $("recipe-search-status").textContent = "";
+}
+
+function saveRecipeDraft() {
+  var status = $("recipe-status");
+  recipeDraft.name = $("recipe-name").value.trim();
+  var sv = Number($("recipe-servings").value);
+  recipeDraft.servings = sv > 0 ? sv : 0;
+  if (!recipeDraft.name) {
+    status.textContent = "Give the recipe a name first.";
+    status.className = "status error";
+    return;
+  }
+  if (!(recipeDraft.servings > 0)) {
+    status.textContent = "Servings must be more than 0.";
+    status.className = "status error";
+    return;
+  }
+  if (!recipeDraft.ingredients.length) {
+    status.textContent = "Add at least one ingredient before saving.";
+    status.className = "status error";
+    return;
+  }
+  var rec = {
+    id: recipeDraft.id || ("r" + Date.now()),
+    name: recipeDraft.name,
+    servings: recipeDraft.servings,
+    ingredients: recipeDraft.ingredients
+  };
+  if (recipeDraft.id) {
+    myRecipes = myRecipes.map(function (x) { return x.id === rec.id ? rec : x; });
+  } else {
+    myRecipes.push(rec);
+  }
+  saveRecipes();
+  resetRecipeDraft();
+  renderRecipeBuilder();
+  status.textContent = "Recipe \"" + rec.name + "\" saved.";
+  status.className = "status";
+}
+
+function renderRecipeResults(results) {
+  var ul = $("recipe-search-results");
+  if (!results.length) { ul.innerHTML = ""; return; }
+  ul.innerHTML = results.map(function (r, idx) {
+    var meta = (r.brand ? esc(r.brand) + " · " : "") +
+      Math.round(r.per100.kcal) + " kcal · P " + round1(r.per100.protein) + " · C " + round1(r.per100.carbs) +
+      " · F " + round1(r.per100.fat) + (r.serving && r.serving.unit === "ml" ? " per 100 ml" : " per 100 g");
+    if (r.serving) meta += " · Serving: " + esc(servingDisplay(r.serving));
+    var control;
+    if (r.serving) {
+      var amtTxt = r.serving.unit === "ml" ? volumeText(r.serving.amount) : r.serving.amount + " g";
+      var opts = '<option value="serving">' + esc(r.serving.label || "serving") + " · " + esc(amtTxt) + "</option>";
+      if (r.serving.unit === "ml") opts += '<option value="volume">' + (waterImperial() ? "fl oz" : "ml") + "</option>";
+      opts += '<option value="g">grams</option>';
+      control = '<input type="number" class="result-qty" id="rqty-' + idx + '" value="1" min="0" step="0.5" aria-label="Quantity"> ' +
+        '<select class="result-unit" id="runit-' + idx + '" aria-label="Amount unit">' + opts + "</select>";
+    } else {
+      control = '<input type="number" class="result-grams" id="rgrams-' + idx + '" value="100" min="1" step="1" aria-label="Grams"> g';
+    }
+    return '<li class="result"><div class="result-main">' +
+      '<span class="result-name">' + esc(r.name) + "</span> " +
+      '<span class="source-tag">' + esc(r.source) + "</span>" +
+      '<div class="result-meta">' + meta + "</div></div>" +
+      control +
+      '<button type="button" class="btn btn-primary btn-small" data-radd="' + idx + '"><span>Add ingredient</span></button></li>';
+  }).join("");
+  ul.querySelectorAll("[data-radd]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var idx = Number(btn.getAttribute("data-radd"));
+      var food = results[idx];
+      var amt = amountFromControls(food, "rqty-" + idx, "runit-" + idx, "rgrams-" + idx);
+      recipeDraft.ingredients.push({
+        name: food.name,
+        brand: food.brand || "",
+        per100: JSON.parse(JSON.stringify(food.per100)),
+        grams: Math.max(1, Math.round(amt.grams)),
+        disp: amt.disp,
+        serving: food.serving ? { amount: food.serving.amount, unit: food.serving.unit, label: food.serving.label || null } : null
+      });
+      renderRecipeBuilder();
+    });
+  });
 }
 
 function lookupBarcode(code) {
@@ -1417,6 +1617,7 @@ function renderAll() {
   renderHome();
   renderLog();
   renderQuickAdd();
+  renderRecipeBuilder();
   renderTrends();
   renderWater();
   renderPlanner();
@@ -1566,6 +1767,43 @@ function init() {
     saveState(); renderRecipeMatches();
   });
   $("plan-generate").addEventListener("click", generatePlan);
+
+  // Recipe builder
+  $("recipe-name").addEventListener("input", function () { recipeDraft.name = this.value; });
+  $("recipe-servings").addEventListener("input", function () {
+    var v = Number(this.value);
+    recipeDraft.servings = v > 0 ? v : 1;
+    renderRecipeBuilder();
+  });
+  $("recipe-search-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var q = $("recipe-search-input").value.trim();
+    if (!q) return;
+    var status = $("recipe-search-status");
+    status.textContent = "Searching Open Food Facts and USDA…";
+    status.className = "status";
+    renderRecipeResults([]);
+    var offP = searchOFF(q).catch(function () { return []; });
+    var usdaP = searchUSDA(q).catch(function () { return []; });
+    Promise.all([offP, usdaP]).then(function (both) {
+      var results = both[0].concat(both[1]).slice(0, 12);
+      if (!results.length) {
+        status.textContent = "No matches found. Try a different spelling.";
+        status.className = "status error";
+      } else {
+        status.textContent = results.length + " result" + (results.length === 1 ? "" : "s") + ". Set the amount, then Add ingredient.";
+        status.className = "status";
+      }
+      renderRecipeResults(results);
+    });
+  });
+  $("recipe-save").addEventListener("click", saveRecipeDraft);
+  $("recipe-cancel-edit").addEventListener("click", function () {
+    resetRecipeDraft();
+    renderRecipeBuilder();
+    $("recipe-status").textContent = "Editing cancelled.";
+    $("recipe-status").className = "status";
+  });
 
   // Settings
   $("settings-form").addEventListener("submit", function (e) {

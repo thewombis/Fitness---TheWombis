@@ -156,6 +156,30 @@
       <div id="log-empty" class="hint">Nothing logged for this day yet. Search above to add your first food.</div>
       <div id="log-list"></div>
     </div>
+
+    <div class="card" id="recipes-card">
+      <h2>My recipes</h2>
+      <p class="hint">Build a recipe from foods, set how many servings it makes, then log it by the serving — fractions like 0.5 work too. Logging uses the meal selected in Add food above.</p>
+      <div id="recipe-list"></div>
+      <h3 id="recipe-form-title">New recipe</h3>
+      <div class="search-form">
+        <label class="grow">Name <input type="text" id="recipe-name" placeholder="e.g. Weeknight chili"></label>
+        <label>Servings <input type="number" id="recipe-servings" value="1" min="0.25" step="0.25"></label>
+      </div>
+      <div id="recipe-ingredients"></div>
+      <div id="recipe-totals" class="hint"></div>
+      <form id="recipe-search-form" class="search-form">
+        <label class="grow">Add an ingredient <input type="search" id="recipe-search-input" placeholder="Search foods, e.g. black beans" autocomplete="off"></label>
+        <button class="btn btn-primary" type="submit">Search</button>
+      </form>
+      <div id="recipe-search-status" class="status" role="status"></div>
+      <ul id="recipe-search-results" class="results"></ul>
+      <div class="row">
+        <button type="button" class="btn btn-primary" id="recipe-save">Save recipe</button>
+        <button type="button" class="btn btn-ghost" id="recipe-cancel-edit" hidden>Cancel editing</button>
+      </div>
+      <div id="recipe-status" class="status" role="status"></div>
+    </div>
   </section>
 
   <!-- ============ TRENDS ============ -->
@@ -493,6 +517,7 @@
   </div>
 
 <script src="html5-qrcode.min.js" defer></script>
+<script src="recipes.js" defer></script>
 <script src="app.js" defer></script>
 <script src="workouts.js" defer></script>
 <script src="photos.js" defer></script>
