@@ -48,6 +48,11 @@
 
 <main class="wrap">
 
+  <div id="reminder-banner" class="reminder-banner" hidden>
+    <span id="reminder-banner-text"></span>
+    <button type="button" class="btn btn-small" id="reminder-banner-dismiss">Dismiss</button>
+  </div>
+
   <!-- ============ HOME ============ -->
   <section id="tab-home" class="tab-page">
     <div class="card">
@@ -462,6 +467,19 @@
         <input type="file" id="import-file" accept="application/json,.json" hidden>
       </div>
       <div id="backup-status" class="status" role="status"></div>
+      <hr>
+      <h3>Meal reminders</h3>
+      <p class="hint">Gentle nudges when a meal time has passed and nothing is logged for it yet. Reminders work while the app is open or running in the background on supported browsers — a web app cannot guarantee notifications while it is fully closed.</p>
+      <label class="check"><input type="checkbox" id="rem-enabled"> Meal reminders on</label>
+      <div class="settings-grid">
+        <label>Lunch reminder <input type="time" id="rem-lunch" value="12:30"></label>
+        <label>Dinner reminder <input type="time" id="rem-dinner" value="18:30"></label>
+      </div>
+      <div class="row">
+        <button type="button" class="btn btn-primary" id="rem-save">Save reminders</button>
+      </div>
+      <div id="rem-status" class="status" role="status"></div>
+      <hr>
       <p class="hint">Settings, food logs, water, and planner data are stored only in this browser (localStorage) on this device. Progress photos are stored in this browser's IndexedDB. There are no accounts in this version and nothing is uploaded to a server.</p>
       <button type="button" id="clear-data" class="btn btn-danger">Erase all saved data on this device</button>
     </div>

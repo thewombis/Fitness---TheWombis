@@ -1468,6 +1468,69 @@ function cancelFast() {
   renderFasting();
 }
 
+/* ---------- Gentle meal reminders ----------
+   Honest scope: checks run while the app is open (on load and every
+   minute) and fire a notification where the browser supports it, plus a
+   dismissible in-app banner. Nothing here can guarantee a notification
+   while the app is fully closed. */
+var reminderBannerMsgs = [];
+
+function saveReminders() { saveJSON(REMINDER_KEY, reminderCfg); }
+
+function renderReminderSettings() {
+  if (!$("rem-enabled")) return;
+  $("rem-enabled").checked = !!reminderCfg.enabled;
+  $("rem-lunch").value = reminderCfg.lunch || "12:30";
+  $("rem-dinner").value = reminderCfg.dinner || "18:30";
+}
+
+function reminderTimePassed(hhmm) {
+  var parts = String(hhmm || "").split(":").map(Number);
+  if (parts.length !== 2 || !(parts[0] >= 0) || !(parts[1] >= 0)) return false;
+  var now = new Date();
+  return now.getHours() > parts[0] || (now.getHours() === parts[0] && now.getMinutes() >= parts[1]);
+}
+
+function showReminderBanner() {
+  var banner = $("reminder-banner");
+  if (!banner) return;
+  if (!reminderBannerMsgs.length) { banner.hidden = true; return; }
+  $("reminder-banner-text").textContent = reminderBannerMsgs.join(" ");
+  banner.hidden = false;
+}
+
+function fireReminder(meal) {
+  var msg = "Gentle reminder: nothing logged for " + meal + " yet today.";
+  if ("Notification" in window && Notification.permission === "granted") {
+    var shown = false;
+    if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+      navigator.serviceWorker.ready.then(function (reg) {
+        if (reg && reg.showNotification) { reg.showNotification("Calorie Counter", { body: msg }); shown = true; }
+      }).catch(function () { /* fall through to the banner */ });
+    }
+    if (!shown) {
+      try { new Notification("Calorie Counter", { body: msg }); } catch (e) { /* banner below still shows */ }
+    }
+  }
+  if (reminderBannerMsgs.indexOf(msg) < 0) reminderBannerMsgs.push(msg);
+  showReminderBanner();
+}
+
+function checkReminders() {
+  if (!reminderCfg.enabled) return;
+  var today = todayStr();
+  [["Lunch", reminderCfg.lunch], ["Dinner", reminderCfg.dinner]].forEach(function (pair) {
+    var meal = pair[0];
+    if (reminderCfg.lastFired[meal] === today) return;
+    if (!reminderTimePassed(pair[1])) return;
+    // One check per meal per day: if it is already logged, stay quiet.
+    reminderCfg.lastFired[meal] = today;
+    saveReminders();
+    var logged = entriesFor(today).some(function (e) { return e.meal === meal; });
+    if (!logged) fireReminder(meal);
+  });
+}
+
 /* ---------- Meal planner ---------- */
 var MEAL_SPLITS = {
   3: [["Breakfast", 30], ["Lunch", 35], ["Dinner", 35]],
@@ -1999,6 +2062,49 @@ function init() {
     }
     saveState(); renderSettings(); renderAll();
     $("settings-status").textContent = "Settings saved.";
+  });
+
+  // Reminders
+  renderReminderSettings();
+  checkReminders();
+  setInterval(checkReminders, 60000);
+  $("reminder-banner-dismiss").addEventListener("click", function () {
+    reminderBannerMsgs = [];
+    showReminderBanner();
+  });
+  $("rem-save").addEventListener("click", function () {
+    reminderCfg.enabled = $("rem-enabled").checked;
+    reminderCfg.lunch = $("rem-lunch").value || "12:30";
+    reminderCfg.dinner = $("rem-dinner").value || "18:30";
+    saveReminders();
+    var status = $("rem-status");
+    status.className = "status";
+    if (!reminderCfg.enabled) {
+      status.textContent = "Reminders off and saved.";
+      return;
+    }
+    if (!("Notification" in window)) {
+      status.textContent = "Reminders saved. This browser does not support notifications, so reminders appear as an in-app banner while the app is open.";
+      checkReminders();
+      return;
+    }
+    if (Notification.permission === "default") {
+      Notification.requestPermission().then(function () {
+        status.textContent = Notification.permission === "granted"
+          ? "Reminders saved. Notifications are on while the app is open or in the background."
+          : "Reminders saved. Notification permission was not granted, so reminders will appear as an in-app banner while the app is open.";
+        checkReminders();
+      }).catch(function () {
+        status.textContent = "Reminders saved. Reminders will appear as an in-app banner while the app is open.";
+        checkReminders();
+      });
+    } else if (Notification.permission === "granted") {
+      status.textContent = "Reminders saved. Notifications are on while the app is open or in the background.";
+      checkReminders();
+    } else {
+      status.textContent = "Reminders saved. Notifications are blocked for this site, so reminders will appear as an in-app banner while the app is open.";
+      checkReminders();
+    }
   });
 
   // Setup wizard
