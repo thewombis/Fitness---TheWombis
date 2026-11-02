@@ -423,6 +423,14 @@ hr { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
 .settings-grid label { display: grid; gap: 5px; font-size: 0.94rem; color: var(--muted); }
 .settings-grid input, .settings-grid select { color: var(--ink); }
 .unit-note { color: var(--muted); font-weight: 400; font-size: 0.85em; }
+
+/* Erase confirmation modal */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(10, 15, 22, 0.55); display: flex; align-items: center; justify-content: center; padding: 18px; z-index: 100; }
+.modal-backdrop[hidden] { display: none; }
+.modal { background: var(--card); color: var(--ink); border-radius: var(--radius); box-shadow: var(--shadow); max-width: 420px; width: 100%; padding: 22px; }
+.modal h3 { margin-top: 0; }
+.modal input { width: 100%; margin: 4px 0 14px; }
+.modal-actions { justify-content: flex-end; }
 #clear-data { margin-top: 6px; }
 
 .site-footer { padding: 10px 0 30px; color: var(--muted); font-size: 0.9rem; }

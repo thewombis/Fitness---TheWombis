@@ -144,6 +144,7 @@ window.Photos = (function () {
       }).join("");
       box.querySelectorAll("[data-del-photo]").forEach(function (btn) {
         btn.addEventListener("click", function () {
+          if (!window.confirm("Delete this photo? Photos are stored only on this device and this cannot be undone.")) return;
           var id = Number(btn.getAttribute("data-del-photo"));
           deletePhoto(id).then(function () {
             status("Photo deleted.");
@@ -316,13 +317,14 @@ window.Photos = (function () {
     var eraseBtn = $("photo-erase-all");
     if (eraseBtn) {
       eraseBtn.addEventListener("click", function () {
-        if (!window.confirm("Erase ALL progress photos stored in this browser? This cannot be undone.")) return;
-        clearPhotos().then(function () {
-          stopTimeLapse();
-          $("tl-viewer").hidden = true;
-          status("All progress photos erased.");
-          refreshGallery();
-        }).catch(function () { status("Could not erase photos.", true); });
+        window.askErase("This permanently erases ALL progress photos stored on this device. They are stored only on this device and are not backed up anywhere, and this cannot be undone.", function () {
+          clearPhotos().then(function () {
+            stopTimeLapse();
+            $("tl-viewer").hidden = true;
+            status("All progress photos erased.");
+            refreshGallery();
+          }).catch(function () { status("Could not erase photos.", true); });
+        });
       });
     }
 

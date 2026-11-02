@@ -398,6 +398,19 @@
   </div>
 </footer>
 
+<div id="erase-modal" class="modal-backdrop" hidden>
+    <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="erase-title" aria-describedby="erase-text">
+      <h3 id="erase-title">Are you absolutely sure?</h3>
+      <p id="erase-text"></p>
+      <p>Type <strong>ERASE</strong> to confirm:</p>
+      <input type="text" id="erase-input" autocomplete="off" autocapitalize="characters" placeholder="ERASE" aria-label="Type ERASE to confirm">
+      <div class="row modal-actions">
+        <button type="button" id="erase-cancel" class="btn">Cancel</button>
+        <button type="button" id="erase-confirm" class="btn btn-danger" disabled>Erase permanently</button>
+      </div>
+    </div>
+  </div>
+
 <script src="html5-qrcode.min.js" defer></script>
 <script src="app.js" defer></script>
 <script src="workouts.js" defer></script>

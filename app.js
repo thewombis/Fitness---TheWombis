@@ -909,6 +909,24 @@ function renderSettings() {
   document.querySelectorAll(".set-unit-name").forEach(function (el) { el.textContent = unitLabel(); });
 }
 
+/* ---------- Erase confirmation (type ERASE to proceed) ---------- */
+var eraseCallback = null;
+
+function askErase(what, cb) {
+  eraseCallback = cb;
+  $("erase-text").textContent = what;
+  var input = $("erase-input");
+  input.value = "";
+  $("erase-confirm").disabled = true;
+  $("erase-modal").hidden = false;
+  setTimeout(function () { input.focus(); }, 30);
+}
+
+function closeErase() {
+  $("erase-modal").hidden = true;
+  eraseCallback = null;
+}
+
 /* ---------- Render everything ---------- */
 function renderAll() {
   renderHome();
@@ -1085,14 +1103,31 @@ function init() {
     $("settings-status").textContent = "Settings saved.";
   });
 
+  $("erase-input").addEventListener("input", function () {
+    $("erase-confirm").disabled = this.value.trim().toUpperCase() !== "ERASE";
+  });
+  $("erase-input").addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && !$("erase-confirm").disabled) $("erase-confirm").click();
+  });
+  $("erase-confirm").addEventListener("click", function () {
+    var cb = eraseCallback;
+    closeErase();
+    if (cb) cb();
+  });
+  $("erase-cancel").addEventListener("click", closeErase);
+  $("erase-modal").addEventListener("click", function (e) {
+    if (e.target === this) closeErase();
+  });
+
   $("clear-data").addEventListener("click", function () {
-    if (!window.confirm("Erase all saved food logs, weigh-ins, water, plans, and settings stored in this browser? (Progress photos are erased separately from the Photo Diary tab.)")) return;
-    state = defaultState();
-    selectedDate = todayStr();
-    waterDate = todayStr();
-    saveState(); applyTheme(); renderSettings(); renderAll();
-    $("search-results").innerHTML = "";
-    $("search-status").textContent = "All saved data on this device has been erased.";
+    askErase("This permanently erases ALL food logs, weigh-ins, water, meal plans, and settings stored on this device. Everything is stored only on this device, so there is no backup and this cannot be undone. Progress photos are erased separately, from the Photo Diary tab.", function () {
+      state = defaultState();
+      selectedDate = todayStr();
+      waterDate = todayStr();
+      saveState(); applyTheme(); applyLanguage(); renderSettings(); renderAll();
+      $("search-results").innerHTML = "";
+      $("search-status").textContent = "All saved data on this device has been erased.";
+    });
   });
 }
 
