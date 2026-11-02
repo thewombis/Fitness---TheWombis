@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calorie Counter — Test Build</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap">
+    <h1>Calorie Counter</h1>
+    <p class="tagline">Search real food databases, log your day, track your weight.</p>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- Daily summary -->
+  <section class="card" id="summary-card">
+    <div class="summary-flex">
+      <div class="ring-box">
+        <svg id="ring" width="170" height="170" viewBox="0 0 170 170" role="img" aria-label="Calories remaining today">
+          <circle cx="85" cy="85" r="74" class="ring-bg"></circle>
+          <circle cx="85" cy="85" r="74" class="ring-fg" id="ring-fg"></circle>
+        </svg>
+        <div class="ring-center">
+          <div class="ring-remaining" id="ring-remaining">0</div>
+          <div class="ring-label">kcal remaining</div>
+        </div>
+      </div>
+      <div class="summary-stats">
+        <div class="stat"><span class="stat-num" id="stat-target">2000</span><span class="stat-label">Target</span></div>
+        <div class="stat"><span class="stat-num" id="stat-eaten">0</span><span class="stat-label">Eaten</span></div>
+        <div class="stat"><span class="stat-num" id="stat-burned-note"></span><span class="stat-label" id="stat-date-label">Today</span></div>
+        <div class="macros">
+          <div class="macro"><span class="macro-name">Protein</span><div class="bar"><div class="bar-fill protein" id="bar-protein"></div></div><span class="macro-val" id="val-protein">0 g</span></div>
+          <div class="macro"><span class="macro-name">Carbs</span><div class="bar"><div class="bar-fill carbs" id="bar-carbs"></div></div><span class="macro-val" id="val-carbs">0 g</span></div>
+          <div class="macro"><span class="macro-name">Fat</span><div class="bar"><div class="bar-fill fat" id="bar-fat"></div></div><span class="macro-val" id="val-fat">0 g</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="day-nav">
+      <button type="button" id="day-prev" class="btn btn-ghost">&larr; Prev day</button>
+      <input type="date" id="day-picker" aria-label="Choose day">
+      <button type="button" id="day-next" class="btn btn-ghost">Next day &rarr;</button>
+      <button type="button" id="day-today" class="btn btn-ghost">Today</button>
+    </div>
+  </section>
+
+  <!-- Search -->
+  <section class="card">
+    <h2>Add food</h2>
+    <form id="search-form" class="row">
+      <input type="search" id="search-input" placeholder="Search foods, e.g. greek yogurt, creatine, chicken breast" aria-label="Search foods" required>
+      <select id="meal-select" aria-label="Meal">
+        <option>Breakfast</option>
+        <option>Lunch</option>
+        <option>Dinner</option>
+        <option>Snack</option>
+      </select>
+      <button type="submit" class="btn btn-primary">Search</button>
+    </form>
+    <p class="hint">Sources: Open Food Facts (branded products) and USDA FoodData Central (generic foods). Values are per 100 g unless a serving is listed.</p>
+    <div id="search-status" class="status" role="status"></div>
+    <ul id="search-results" class="results"></ul>
+
+    <hr>
+    <form id="barcode-form" class="row">
+      <input type="text" id="barcode-input" inputmode="numeric" placeholder="Type or paste a barcode number" aria-label="Barcode">
+      <button type="submit" class="btn">Look up barcode</button>
+    </form>
+    <div id="barcode-status" class="status" role="status"></div>
+  </section>
+
+  <!-- Log -->
+  <section class="card">
+    <h2>Food log</h2>
+    <div id="log-empty" class="hint">Nothing logged for this day yet. Search above to add your first food.</div>
+    <div id="log-list"></div>
+  </section>
+
+  <!-- Weight -->
+  <section class="card">
+    <h2>Weight</h2>
+    <div class="weight-stats row">
+      <div class="stat"><span class="stat-num" id="weight-current">—</span><span class="stat-label">Current</span></div>
+      <div class="stat"><span class="stat-num" id="weight-target">—</span><span class="stat-label">Target</span></div>
+      <div class="stat"><span class="stat-num" id="weight-to-go">—</span><span class="stat-label">To go</span></div>
+    </div>
+    <div id="weight-chart" class="chart-box"></div>
+    <form id="weight-form" class="row">
+      <input type="date" id="weight-date" aria-label="Weigh-in date" required>
+      <input type="number" id="weight-value" step="0.1" min="0" placeholder="Weight" aria-label="Weight" required>
+      <span id="weight-unit-label">lb</span>
+      <button type="submit" class="btn btn-primary">Add weigh-in</button>
+    </form>
+    <ul id="weight-list" class="weight-list"></ul>
+  </section>
+
+  <!-- Settings -->
+  <section class="card">
+    <h2>Settings</h2>
+    <form id="settings-form" class="settings-grid">
+      <label>Daily calorie target (kcal)
+        <input type="number" id="set-target" min="500" max="10000" step="10" required>
+      </label>
+      <label>Units
+        <select id="set-unit">
+          <option value="lb">Pounds (lb)</option>
+          <option value="kg">Kilograms (kg)</option>
+        </select>
+      </label>
+      <label>Current weight (<span class="set-unit-name">lb</span>)
+        <input type="number" id="set-current-weight" step="0.1" min="0" placeholder="Optional">
+      </label>
+      <label>Target weight (<span class="set-unit-name">lb</span>)
+        <input type="number" id="set-target-weight" step="0.1" min="0" placeholder="Optional">
+      </label>
+      <button type="submit" class="btn btn-primary">Save settings</button>
+    </form>
+    <p class="hint">Settings and logs are stored only in this browser (localStorage) on this device.</p>
+    <button type="button" id="clear-data" class="btn btn-danger">Erase all saved data on this device</button>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p><strong>Test build.</strong> This is a public testing version of the calorie counter. Your food logs, weight entries, and settings are saved only in this browser on this device — there are no accounts and nothing is uploaded to a server. Nutrition data comes from the Open Food Facts and USDA FoodData Central public databases; values are as published by those sources.</p>
+  </div>
+</footer>
+
+<script src="app.js" defer></script>
+</body>
+</html>
